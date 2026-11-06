@@ -10,7 +10,7 @@
 set -euo pipefail
 
 # 上传到 GitHub 后，把这里改成你的仓库地址
-REPO_URL="${REPO_URL:-https://github.com/OWNER/personal-blog.git}"
+REPO_URL="${REPO_URL:-https://github.com/dryc6688-commits/personal-blog.git}"
 BRANCH="${BRANCH:-main}"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/personal-blog}"
 INSTALL_ARGS=()

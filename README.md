@@ -126,47 +126,53 @@ SESSION_COOKIE_SECURE=1 ./start.sh
 
 ## 从 GitHub 一键安装
 
-仓库上传到 GitHub 后，对方只需一行命令：
+本项目已发布到 GitHub：
+
+```
+https://github.com/dryc6688-commits/personal-blog
+```
+
+一行命令安装：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/<用户名>/personal-blog/main/bootstrap.sh | bash
+curl -fsSL https://raw.githubusercontent.com/dryc6688-commits/personal-blog/main/bootstrap.sh | bash
 ```
 
 带安装参数：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/<用户名>/personal-blog/main/bootstrap.sh \
+curl -fsSL https://raw.githubusercontent.com/dryc6688-commits/personal-blog/main/bootstrap.sh \
   | bash -s -- --port 9000
 ```
 
 默认安装到 `~/personal-blog`，可用 `--dir` 指定：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/<用户名>/personal-blog/main/bootstrap.sh \
+curl -fsSL https://raw.githubusercontent.com/dryc6688-commits/personal-blog/main/bootstrap.sh \
   | bash -s -- --dir /opt/personal-blog --port 8000
 ```
 
 `bootstrap.sh` 会自动克隆仓库、更新已有代码，然后调用 `install.sh`。
 
-### 首次上传到 GitHub
+### 发布自己的副本
 
-在项目根目录执行：
+如果你 Fork 或复制了本项目，需要把 `bootstrap.sh` 里的仓库地址改成你自己的：
+
+```bash
+REPO_URL="${REPO_URL:-https://github.com/你的用户名/你的仓库.git}"
+```
+
+然后提交并推送。README 里的 `dryc6688-commits/personal-blog` 也替换成你的仓库地址即可。
+
+首次上传到 GitHub：
 
 ```bash
 git init -b main
 git add .
 git commit -m "Initial commit"
-git remote add origin https://github.com/<用户名>/personal-blog.git
+git remote add origin https://github.com/你的用户名/你的仓库.git
 git push -u origin main
 ```
-
-推送后，把 `bootstrap.sh` 里的默认仓库地址改成你的仓库：
-
-```bash
-REPO_URL="${REPO_URL:-https://github.com/<用户名>/personal-blog.git}"
-```
-
-再提交并推送一次即可。
 
 `.gitignore` 已排除数据库、密钥、上传文件和个人配置，不会把敏感数据传到 GitHub。
 
