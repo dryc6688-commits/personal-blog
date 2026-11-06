@@ -4,37 +4,30 @@
 
 自带完整后台、首次设置向导、Authenticator 两步验证和 Linux 一键安装脚本，**懒人一键拉取即可使用**。
 
-> GitHub 仓库：<https://github.com/dryc6688-commits/personal-blog>
-
 ---
 
 ## 项目特点
 
 - **一条命令部署**：自动创建虚拟环境、安装依赖、生成密钥、初始化数据库并启动。
 - **零前端构建**：使用 Jinja 模板和原生静态资源，不需要 Node.js、Vite 或 npm。
-- **首次设置向导**：部署完成后先设置隐秘路径、二级密码和管理员账号；Authenticator 为可选项，可以跳过，完成前站点不可正常使用，安全性大幅提高。
-- **安全默认配置**：随机 `SECRET_KEY`、PBKDF2-SHA256 密码哈希、登录失败限流、安全 Cookie、隐藏后台入口、可选的 TOTP 两步验证和一次性临时登录密钥。
-- **数据完全自持**：文章、配置、上传文件都在自己的服务器上；SQLite 单文件数据库，备份和迁移都简单。
-- **生产可用**：使用 Waitress 运行，支持 systemd 开机自启、后台启停、状态查看和日志。
-- **方便分发**：内置 `package.sh` 可生成不含个人数据的干净安装包。
+- **首次设置向导**：必须先完成向导设置，无任何默认账号密码，安全性大幅提高。
 - **推荐服务器**：阿里云、腾讯云的香港轻量云服务器即可，免去备案麻烦。
 - **开发说明**：本项目使用 DeepSeek V4.1 Flash 1017 构建，总消耗 338,485,755 Tokens。
 
 ## 项目功能
 
-- 图文、文字、视频混排发布
+- 图片、文字、视频单独及混排发布
 - 代码高亮与一键复制
-- 图片画廊、视频嵌入、灯箱
-- 分类筛选，一篇文章可多分类
-- 友链管理（权重排序）
-- 音乐播放器（圆盘 / 音乐卡片、音量、进度）
-- 弹窗推送（图片 / 文字 / 图文，支持手动关闭、点击外部关闭、倒计时）
-- 点赞、打赏、文章访问量统计
-- 文章密码、私密入口与私密文章
-- 数据统计与埋点
-- 用户管理、LOGO、备案信息、富文本编辑器
-- 文件上传
-
+- =音乐播放器（支持网易、QQ音乐等接入）
+- 分类筛选、友链管理
+- 弹窗推送（纯图、纯文、图文等三种模式，定时、单次、每次多种方案）
+- 单篇文章密码、只给特定的人群看
+- 私密空间（加密类目 关联后的内容只有得到空间密码才能观看）
+- 数据统计、备案信息一键填写
+- 富文本编辑器、文字大小粗细颜色均可随意组合
+- 点赞功能 浏览量功能 均内置基础数值补充
+- 打赏功能（支持V/Q）
+  
 ---
 
 ## 快速开始（Linux 服务器）
@@ -54,6 +47,8 @@
 | RHEL / Rocky / AlmaLinux | `sudo dnf install -y git curl python3 python3-pip` |
 
 ### 2. 一条命令安装
+
+### 1. 复制后把host 0.0.0.0改成你服务器的IP 再复制到服务器安装
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/dryc6688-commits/personal-blog/main/bootstrap.sh \
@@ -90,13 +85,13 @@ sudo ufw allow 8000/tcp
 http://<服务器公网IP>:8000/setup
 ```
 
-把 `<服务器公网IP>` 换成你的服务器公网 IP。不要用 `127.0.0.1`，那只在本机有效。
+把 `<服务器公网IP>` 换成你的服务器公网 IP。
 
 首次访问会进入三步引导：
 
 1. 设置后台隐秘路径和二级密码
 2. 设置管理员用户名和密码
-3. 绑定 Authenticator（可跳过），并保存一次性临时登录密钥
+3. 绑定 Authenticator（可跳过），并保存一次性临时登录密钥（丢失Authenticator时可用）
 
 如果暂时不想绑定 Authenticator，在第 3 步点击「暂不绑定，跳过」即可完成设置。之后登录后台，在「设置 → 两步验证」中可以随时启用。
 
@@ -105,11 +100,11 @@ http://<服务器公网IP>:8000/setup
 完成后登录流程：
 
 ```
-http(s)://你的域名或服务器IP/隐秘路径
+http(s)://你的域名或服务器IP/你在向导设置的路径
   → 二级密码
   → 管理员账号密码
   →（如果已启用）Authenticator 6 位动态验证码
-  → 后台
+  → 成功登陆后台
 ```
 
 ---
@@ -252,43 +247,6 @@ DEBUG=1 python3 app.py
 
 ---
 
-## 技术栈
-
-| 组件 | 说明 |
-|---|---|
-| Python | 3.9+ |
-| Flask | Web 框架 |
-| Jinja2 | 页面模板 |
-| SQLite | 单文件数据库 |
-| Waitress | 生产 WSGI 服务器 |
-| pyotp | Authenticator TOTP |
-| qrcode | 二维码生成 |
-
-不需要 Node.js，不需要前端构建，不需要额外数据库服务。
-
----
-
-## 项目结构
-
-```text
-app.py              主程序
-wsgi.py             WSGI 入口
-templates/          页面模板
-static/             前端资源与上传目录
-install.sh          一键安装
-bootstrap.sh        GitHub 远程安装引导
-start.sh            后台启动
-stop.sh             停止
-status.sh           查看状态
-uninstall.sh        卸载
-run.sh              前台运行入口
-package.sh          生成干净分发包
-requirements.txt    Python 依赖
-.env.example        配置示例
-```
-
----
-
 ## 常见问题
 
 ### 端口被占用
@@ -359,42 +317,3 @@ UPDATE settings SET value='0' WHERE key='admin_totp_enabled';
 
 ---
 
-## 发布自己的副本
-
-如果你 Fork 或复制了本项目，需要把 `bootstrap.sh` 中的仓库地址改成你自己的：
-
-```bash
-REPO_URL="${REPO_URL:-https://github.com/你的用户名/你的仓库.git}"
-```
-
-README 中的 `dryc6688-commits/personal-blog` 也替换成你的仓库地址。
-
-首次上传到 GitHub：
-
-```bash
-git init -b main
-git add .
-git commit -m "Initial commit"
-git remote add origin https://github.com/你的用户名/你的仓库.git
-git push -u origin main
-```
-
-`.gitignore` 已排除数据库、密钥、上传文件和个人配置，不会把敏感数据传到 GitHub。
-
----
-
-## 制作离线分发包
-
-```bash
-./package.sh
-```
-
-会生成 `dist/personal-blog-YYYYMMDD.tar.gz`，不包含：
-
-- `blog.db`
-- `secret_key`
-- `.env`
-- 真实上传文件
-- 部署备份和归档目录
-
-对方解压后执行 `./install.sh` 即可完成部署。
