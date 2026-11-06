@@ -81,13 +81,13 @@
     </form>
 
     {% elif step == 3 %}
-    <p class="setup-note">最后一步：使用 Google Authenticator / Microsoft Authenticator / Authy 扫描二维码，然后输入 6 位验证码完成绑定。</p>
+    <p class="setup-note">最后一步（可选）：使用 Google Authenticator / Microsoft Authenticator / Authy 扫描二维码，然后输入 6 位验证码完成绑定。也可以暂时跳过，之后在后台设置中随时启用。</p>
     <div style="display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start;margin:18px 0;">
       <img class="setup-qr" src="{{ qr }}" alt="Authenticator QR">
       <div style="max-width:360px;">
         <p class="setup-note">无法扫码？手动输入密钥：</p>
         <code id="setup-secret" class="setup-secret">{{ secret }}</code>
-        <p class="setup-note" style="margin-top:12px;">绑定完成后，系统会生成一个一次性临时登录密钥，请务必保存。</p>
+        <p class="setup-note" style="margin-top:12px;">绑定成功后，系统会生成一个一次性临时登录密钥，请务必保存。</p>
       </div>
     </div>
     <form method="post" action="{{ url_for('setup_step3') }}" class="login-form" style="max-width:360px;">
@@ -98,16 +98,21 @@
       </label>
       <button class="btn-primary" type="submit">完成绑定</button>
     </form>
+    <form method="post" action="{{ url_for('setup_skip2fa') }}" style="max-width:360px;margin-top:10px;">
+      <button class="btn-ghost btn-block" type="submit">暂不绑定，跳过</button>
+    </form>
+    <p class="setup-note" style="margin-top:10px;">跳过不会影响博客使用；登录后台后可在「设置 → 两步验证」中启用。</p>
 
     {% elif step == 4 %}
     <h2 style="margin:0 0 8px;">设置完成 🎉</h2>
-    <p class="setup-note">后台已经可以正常使用。请立即保存下面的信息。</p>
+    <p class="setup-note">后台已经可以正常使用。请保存下面的信息。</p>
 
     <div style="margin:18px 0;">
       <p class="setup-note" style="margin-bottom:6px;">后台隐秘入口：</p>
       <code class="setup-secret" style="font-size:15px;">/{{ secret_path }}</code>
     </div>
 
+    {% if temp_key %}
     <div style="margin:18px 0;">
       <p class="setup-note" style="margin-bottom:6px;">一次性临时登录密钥（不设有效期，仅可使用一次）：</p>
       <div id="setup-temp-key" class="setup-key">{{ temp_key }}</div>
@@ -118,6 +123,13 @@
       登录流程：<b>隐秘入口 → 二级密码 → 管理员账号密码 → Authenticator 验证码</b>。<br>
       如果无法使用 Authenticator，可在验证页使用上面的一次性临时密钥。
     </p>
+    {% else %}
+    <div style="margin:18px 0;padding:14px 16px;border:1px solid #e4e8ee;border-radius:12px;background:#fafbfc;">
+      <p class="setup-note" style="margin:0 0 6px;">你已跳过 Authenticator 绑定。</p>
+      <p class="setup-note" style="margin:0;">当前登录流程：<b>隐秘入口 → 二级密码 → 管理员账号密码</b>。<br>
+      建议登录后台后到「设置 → 两步验证」中启用，提升账号安全性。</p>
+    </div>
+    {% endif %}
 
     <div style="margin-top:22px;">
       <a class="btn-primary" href="/{{ secret_path }}">进入后台入口</a>

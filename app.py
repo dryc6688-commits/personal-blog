@@ -1293,6 +1293,24 @@ def setup_step3():
                            secret_path=current.get("admin_secret_path", ""))
 
 
+@app.route("/setup/skip2fa", methods=["POST"])
+def setup_skip2fa():
+    settings = get_settings()
+    if settings.get("setup_completed") == "1" or settings.get("setup_step") != "3":
+        return redirect(url_for("setup_wizard"))
+    set_setting("admin_totp_enabled", "0")
+    set_setting("admin_totp_secret", "")
+    set_setting("admin_temp_key_hash", "")
+    set_setting("admin_temp_key_expires", "")
+    set_setting("setup_step", "4")
+    set_setting("setup_completed", "1")
+    session.pop("setup_totp_secret", None)
+    get_db().commit()
+    current = get_settings()
+    return render_template("setup.html", step=4, temp_key=None,
+                           secret_path=current.get("admin_secret_path", ""))
+
+
 @app.route("/<secret>", methods=["GET", "POST"])
 def admin_secret_gate(secret):
     settings = get_settings()
