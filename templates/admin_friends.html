@@ -1,0 +1,96 @@
+{% extends "admin_base.html" %}
+{% block title %}友链管理{% endblock %}
+
+{% block content %}
+<div class="admin-toolbar">
+  <div>
+    <h1>友链管理</h1>
+    <p class="muted">权重越大越靠前；关闭「显示」后前台不展示。</p>
+  </div>
+  <a class="btn-ghost" href="{{ url_for('friends_page') }}" target="_blank">查看友链页 ↗</a>
+</div>
+
+<div class="card">
+  <div class="card-title">添加友链</div>
+  <form method="post" action="{{ url_for('admin_friends_add') }}" class="friend-form">
+    <div class="field-row">
+      <div class="field">
+        <label>名称</label>
+        <input name="name" required placeholder="站点名称">
+      </div>
+      <div class="field">
+        <label>链接</label>
+        <input name="url" required placeholder="https://...">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Logo 地址</label>
+        <div class="input-with-btn">
+          <input id="friend_logo" name="logo" placeholder="/static/uploads/xxx.png">
+          <button type="button" class="btn-sm js-upload" data-target="#friend_logo" data-accept="image/*">上传</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>权重（越大越靠前）</label>
+        <input name="weight" type="number" value="100">
+      </div>
+    </div>
+    <div class="field">
+      <label>描述</label>
+      <input name="description" placeholder="一句话介绍">
+    </div>
+    <div class="friend-form-foot">
+      <label class="switch"><input type="checkbox" name="enabled" checked><span>显示在友链页</span></label>
+      <button class="btn-primary" type="submit">+ 添加友链</button>
+    </div>
+  </form>
+</div>
+
+{% for l in links %}
+<div class="card friend-edit-card">
+  <form method="post" action="{{ url_for('admin_friends_update', link_id=l.id) }}" class="friend-form">
+    <div class="field-row">
+      <div class="field">
+        <label>名称</label>
+        <input name="name" value="{{ l.name }}" required>
+      </div>
+      <div class="field">
+        <label>链接</label>
+        <input name="url" value="{{ l.url }}" required>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Logo 地址</label>
+        <div class="input-with-btn">
+          <input id="friend_logo_{{ l.id }}" name="logo" value="{{ l.logo }}">
+          <button type="button" class="btn-sm js-upload" data-target="#friend_logo_{{ l.id }}" data-accept="image/*">上传</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>权重</label>
+        <input name="weight" type="number" value="{{ l.weight }}">
+      </div>
+    </div>
+    <div class="field">
+      <label>描述</label>
+      <input name="description" value="{{ l.description }}">
+    </div>
+    <div class="friend-form-foot">
+      <label class="switch"><input type="checkbox" name="enabled" {{ 'checked' if l.enabled }}><span>显示</span></label>
+      <div class="friend-form-actions">
+        <button class="btn-sm" type="submit">保存</button>
+        <button class="btn-sm btn-danger" type="submit"
+                formaction="{{ url_for('admin_friends_delete', link_id=l.id) }}"
+                onclick="return confirm('确定删除该友链吗？')">删除</button>
+      </div>
+    </div>
+  </form>
+</div>
+{% endfor %}
+
+{% if not links %}
+<div class="empty-state"><p>还没有友链，先在上方添加一个吧。</p></div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,40 @@
+{% extends "admin_base.html" %}
+{% block title %}点赞管理{% endblock %}
+
+{% block content %}
+<div class="admin-toolbar">
+  <div>
+    <h1>点赞管理</h1>
+    <p class="muted">文章点赞数对所有访客可见；同一访客可点赞 / 取消点赞。</p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">点赞设置</div>
+  <form method="post">
+    <label class="switch">
+      <input type="checkbox" name="likes_enabled" {{ 'checked' if settings.likes_enabled == '1' }}>
+      <span>启用文章点赞功能</span>
+    </label>
+    <div class="form-actions">
+      <button class="btn-primary" type="submit">保存设置</button>
+    </div>
+  </form>
+</div>
+
+<div class="table-card">
+  <div class="table-title">点赞排行</div>
+  <table class="admin-table">
+    <thead><tr><th>文章</th><th>点赞数</th></tr></thead>
+    <tbody>
+      {% for p in top %}
+      <tr>
+        <td class="title-cell">{{ p.title }}</td>
+        <td>{{ p.likes }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if not top %}<div class="empty-state"><p>还没有文章数据。</p></div>{% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "admin_base.html" %}
+{% block title %}一次性临时登录密钥{% endblock %}
+
+{% block content %}
+<div class="admin-toolbar">
+  <div>
+    <h1>一次性临时登录密钥</h1>
+    <p class="muted">仅在无法使用 Authenticator 时使用。</p>
+  </div>
+  <a class="btn-ghost" href="{{ url_for('admin_settings') }}">← 返回设置</a>
+</div>
+
+<div class="card" style="max-width:640px;">
+  <div class="card-title">请立即保存</div>
+  <p class="hint">该密钥只显示一次，不设有效期，使用一次后立即失效。</p>
+  <div id="temp-key-value" style="font-family:var(--mono);font-size:22px;letter-spacing:.05em;padding:16px;border:1px dashed var(--line);border-radius:12px;background:#fafbfc;word-break:break-all;">
+    {{ key }}
+  </div>
+  <p class="hint">登录时在「两步验证」页面展开「使用一次性临时登录密钥」，输入该密钥即可。</p>
+  <a class="btn-primary" href="{{ url_for('admin_settings') }}">我已保存，返回设置</a>
+</div>
+{% endblock %}

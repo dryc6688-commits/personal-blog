@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}密码保护 · {{ post.title }}{% endblock %}
+
+{% block content %}
+<section class="locked-page">
+  <div class="locked-card">
+    <div class="locked-icon">🔒</div>
+    <h1 class="locked-title">{{ post.title }}</h1>
+    {% if post.excerpt %}<p class="locked-excerpt">{{ post.excerpt }}</p>{% endif %}
+    <p class="locked-tip">该内容已设置访问密码，请输入密码后阅读。</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+      <div class="locked-error">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <form method="post" class="locked-form">
+      <input type="password" name="password" placeholder="请输入访问密码" autofocus required>
+      <button class="btn-primary" type="submit">解锁阅读</button>
+    </form>
+    <a class="locked-back" href="{{ url_for('index') }}">← 返回首页</a>
+  </div>
+</section>
+{% endblock %}

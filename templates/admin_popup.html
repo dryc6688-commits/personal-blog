@@ -1,0 +1,152 @@
+{% extends "admin_base.html" %}
+{% block title %}弹窗推送{% endblock %}
+
+{% block content %}
+<div class="admin-toolbar">
+  <div>
+    <h1>弹窗推送</h1>
+    <p class="muted">站点公告 / 活动弹窗，支持不同触发场景。</p>
+  </div>
+</div>
+
+<form method="post" class="settings-form">
+  <div class="card">
+    <div class="card-title">基础设置</div>
+    <label class="switch">
+      <input type="checkbox" name="popup_enabled" {{ 'checked' if settings.popup_enabled == '1' }}>
+      <span>启用弹窗</span>
+    </label>
+
+    <div class="field">
+      <label for="popup_mode">触发场景</label>
+      <select id="popup_mode" name="popup_mode">
+        <option value="every_open" {{ 'selected' if settings.popup_mode == 'every_open' }}>每次打开页面都弹出</option>
+        <option value="daily_first" {{ 'selected' if settings.popup_mode == 'daily_first' }}>当天第一次打开时弹出</option>
+        <option value="scheduled" {{ 'selected' if settings.popup_mode == 'scheduled' }}>定时段推送</option>
+      </select>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="popup_start">定时开始</label>
+        <input id="popup_start" name="popup_start" type="datetime-local" value="{{ settings.popup_start }}">
+      </div>
+      <div class="field">
+        <label for="popup_end">定时结束</label>
+        <input id="popup_end" name="popup_end" type="datetime-local" value="{{ settings.popup_end }}">
+      </div>
+    </div>
+    <label class="switch">
+      <input type="checkbox" name="popup_daily_once" {{ 'checked' if settings.popup_daily_once == '1' }}>
+      <span>定时段内每天只弹一次</span>
+    </label>
+    <p class="hint">「定时段推送」只在开始与结束时间之间生效；留空则表示不限时间。</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">弹窗内容</div>
+    <div class="field">
+      <label for="popup_content_mode">内容展示模式</label>
+      <select id="popup_content_mode" name="popup_content_mode">
+        <option value="image" {{ 'selected' if settings.popup_content_mode == 'image' }}>纯图片（只展示图片）</option>
+        <option value="text" {{ 'selected' if settings.popup_content_mode == 'text' }}>纯文字（只展示标题和内容）</option>
+        <option value="both" {{ 'selected' if settings.popup_content_mode == 'both' }}>图片 + 文字</option>
+      </select>
+      <p class="hint">纯图片模式下弹窗只显示图片，关闭 / 倒计时在图片下方的独立栏中显示。</p>
+    </div>
+    <div id="popup-text-fields">
+      <div class="field">
+        <label for="popup_title">标题</label>
+        <input id="popup_title" name="popup_title" value="{{ settings.popup_title }}">
+      </div>
+      <div class="field">
+        <label for="popup_content">内容</label>
+        <textarea id="popup_content" name="popup_content" rows="4">{{ settings.popup_content }}</textarea>
+      </div>
+    </div>
+    <div class="field" id="popup-image-field">
+      <label for="popup_image">图片</label>
+      <div class="input-with-btn">
+        <input id="popup_image" name="popup_image" value="{{ settings.popup_image }}" placeholder="/static/uploads/xxx.jpg">
+        <button type="button" class="btn-sm js-upload" data-target="#popup_image" data-accept="image/*">上传</button>
+      </div>
+      <p class="hint">纯图片模式必须上传图片。</p>
+    </div>
+    <div class="field">
+      <label for="popup_post_picker">快速选择文章</label>
+      <select id="popup_post_picker">
+        <option value="">选择文章后自动填充链接</option>
+        {% for p in posts %}
+        <option value="{{ p.id }}">#{{ p.id }} · {{ p.title }}</option>
+        {% endfor %}
+      </select>
+      <p class="hint">选择后会把「跳转链接」自动填为 /post/文章ID，不用记编号。</p>
+    </div>
+    <div class="field">
+      <label for="popup_button_url">跳转链接（可选）</label>
+      <input id="popup_button_url" name="popup_button_url" value="{{ settings.popup_button_url }}" placeholder="https://... 或 /post/1">
+      <p class="hint">填写后，点击弹窗图片或文章内容即可跳转，不再显示额外按钮。</p>
+    </div>
+    <div class="field">
+      <label for="popup_link_target">链接打开方式</label>
+      <select id="popup_link_target" name="popup_link_target">
+        <option value="_blank" {{ 'selected' if settings.popup_link_target == '_blank' }}>新窗口打开</option>
+        <option value="_self" {{ 'selected' if settings.popup_link_target == '_self' }}>当前窗口打开</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">关闭与倒计时</div>
+    <div class="field">
+      <label for="popup_close_mode">关闭方式</label>
+      <select id="popup_close_mode" name="popup_close_mode">
+        <option value="manual" {{ 'selected' if settings.popup_close_mode == 'manual' }}>手动强制关闭（底部独立栏显示关闭按钮）</option>
+        <option value="outside" {{ 'selected' if settings.popup_close_mode == 'outside' }}>点击其他任意位置关闭（不显示关闭按钮）</option>
+      </select>
+    </div>
+    <div class="field" id="countdown-field">
+      <label for="popup_countdown">自动关闭倒计时（单位：秒）</label>
+      <input id="popup_countdown" name="popup_countdown" type="number" min="0" max="3600" step="1" value="{{ settings.popup_countdown }}">
+      <p class="hint">手动强制模式下不可设置；选择「点击其他任意位置关闭」后可设置，0 表示不自动关闭。</p>
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <button class="btn-primary" type="submit">保存弹窗配置</button>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    var closeMode = document.getElementById('popup_close_mode');
+    var countdownField = document.getElementById('countdown-field');
+    function syncCountdown() {
+      countdownField.style.display = closeMode.value === 'manual' ? 'none' : '';
+    }
+    closeMode.addEventListener('change', syncCountdown);
+    syncCountdown();
+
+    var cmode = document.getElementById('popup_content_mode');
+    var textFields = document.getElementById('popup-text-fields');
+    var imageField = document.getElementById('popup-image-field');
+    function syncContent() {
+      var m = cmode.value;
+      textFields.style.display = (m === 'image') ? 'none' : '';
+      imageField.style.display = (m === 'text') ? 'none' : '';
+    }
+    cmode.addEventListener('change', syncContent);
+    syncContent();
+
+    var picker = document.getElementById('popup_post_picker');
+    var urlInput = document.getElementById('popup_button_url');
+    if (picker && urlInput) {
+      picker.addEventListener('change', function () {
+        if (picker.value) urlInput.value = '/post/' + picker.value;
+      });
+    }
+  })();
+</script>
+{% endblock %}

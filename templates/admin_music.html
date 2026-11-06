@@ -1,0 +1,149 @@
+{% extends "admin_base.html" %}
+{% block title %}音乐管理{% endblock %}
+{% set PLATFORM_LABEL = {'netease': '网易云音乐', 'qq': 'QQ音乐', 'soda': '汽水音乐', 'custom': '直链音频'} %}
+{% block content %}
+<div class="admin-toolbar">
+  <div>
+    <h1>音乐管理</h1>
+    <p class="muted">支持网易云音乐、QQ 音乐、汽水音乐及本地/直链音频。</p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">播放器外观</div>
+  <form method="post" action="{{ url_for('admin_music_settings') }}">
+    <div class="field-row">
+      <div class="field">
+        <label for="player_style">播放器样式</label>
+        <select id="player_style" name="player_style">
+          <option value="vinyl" {{ 'selected' if settings.player_style == 'vinyl' }}>圆盘黑胶（左下角悬浮）</option>
+          <option value="card" {{ 'selected' if settings.player_style == 'card' }}>音乐卡片（网易云小组件风）</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="player_volume">默认音量（0-100）</label>
+        <input id="player_volume" name="player_volume" type="number" min="0" max="100" value="{{ settings.player_volume }}">
+      </div>
+    </div>
+    <button class="btn-primary" type="submit">保存播放器设置</button>
+  </form>
+</div>
+
+<div class="card">
+  <div class="card-title">添加曲目</div>
+  <form method="post" action="{{ url_for('admin_music_add') }}" class="music-add-form">
+    <div class="field-row">
+      <div class="field">
+        <label for="title">曲名</label>
+        <input id="title" name="title" placeholder="歌曲名称" required>
+      </div>
+      <div class="field">
+        <label for="artist">歌手</label>
+        <input id="artist" name="artist" placeholder="歌手 / 来源">
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="platform">平台</label>
+        <select id="platform" name="platform">
+          <option value="custom">直链音频（本地 mp3 / 外链）</option>
+          <option value="netease">网易云音乐</option>
+          <option value="qq">QQ 音乐</option>
+          <option value="soda">汽水音乐</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="ref">平台歌曲 ID / mid / 嵌入链接</label>
+        <input id="ref" name="ref" placeholder="如 186016 或 003OUlho2HcRHC">
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="audio_url">音频直链（直链音频 / 汽水音乐可用）</label>
+      <div class="input-with-btn">
+        <input id="audio_url" name="audio_url" placeholder="/static/uploads/xxx.mp3">
+        <button type="button" class="btn-sm js-upload" data-target="#audio_url" data-accept="audio/*">上传</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="cover">封面图（可选）</label>
+      <div class="input-with-btn">
+        <input id="cover" name="cover" placeholder="/static/uploads/xxx.jpg">
+        <button type="button" class="btn-sm js-upload" data-target="#cover" data-accept="image/*">上传</button>
+      </div>
+    </div>
+
+    <p class="hint" id="platform-hint"></p>
+    <button class="btn-primary" type="submit">+ 添加曲目</button>
+  </form>
+</div>
+
+<div class="table-card">
+  {% if tracks %}
+  <table class="admin-table">
+    <thead>
+      <tr><th>曲目</th><th>平台</th><th>来源</th><th>状态</th><th class="actions-col">操作</th></tr>
+    </thead>
+    <tbody>
+      {% for t in tracks %}
+      <tr>
+        <td class="title-cell">
+          <b>{{ t.title }}</b>
+          {% if t.artist %}<div class="row-sub">{{ t.artist }}</div>{% endif %}
+        </td>
+        <td><span class="platform-badge platform-{{ t.platform }}">{{ PLATFORM_LABEL.get(t.platform, t.platform) }}</span></td>
+        <td class="muted nowrap">
+          {% if t.platform in ['custom','soda'] and t.audio_url %}直链音频
+          {% elif t.ref %}{{ t.ref }}
+          {% else %}—{% endif %}
+        </td>
+        <td>
+          {% if t.kind == 'audio' %}<span class="dot-pub">可播放</span>
+          {% elif t.kind == 'embed' %}<span class="dot-pub">平台嵌入</span>
+          {% else %}<span class="dot-draft">未配置</span>{% endif %}
+        </td>
+        <td class="actions-col">
+          <a class="btn-sm" href="{{ url_for('admin_music_edit', track_id=t.id) }}">编辑</a>
+          <form method="post" action="{{ url_for('admin_music_delete', track_id=t.id) }}"
+                class="inline-form" data-confirm="确定删除《{{ t.title }}》吗？">
+            <button class="btn-sm btn-danger" type="submit">删除</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state"><p>还没有曲目，先添加一首吧。</p></div>
+  {% endif %}
+</div>
+
+<div class="tip-card">
+  <b>各平台填写方式</b>
+  <ul>
+    <li><b>网易云音乐</b>：填歌曲数字 ID，例如 <code>186016</code>。</li>
+    <li><b>QQ 音乐</b>：填歌曲 mid（如 <code>003OUlho2HcRHC</code>）或数字 songid。</li>
+    <li><b>汽水音乐</b>：暂无公开嵌入接口，建议上传音频文件或填音频直链。</li>
+    <li><b>直链音频</b>：上传 mp3 / m4a，或填写可公开访问的音频 URL。</li>
+  </ul>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    var sel = document.getElementById('platform');
+    var hint = document.getElementById('platform-hint');
+    var hints = {
+      custom: '直链音频：请上传音频文件或填写音频直链。',
+      netease: '网易云音乐：在「平台歌曲 ID」中填数字歌曲 ID，例如 186016。',
+      qq: 'QQ 音乐：在「平台歌曲 ID」中填歌曲 mid 或数字 songid。',
+      soda: '汽水音乐：暂无公开嵌入，请使用音频直链或上传音频文件。'
+    };
+    function sync() { hint.textContent = hints[sel.value] || ''; }
+    sel.addEventListener('change', sync); sync();
+  })();
+</script>
+{% endblock %}

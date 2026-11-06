@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>后台入口 · {{ settings.site_title }}</title>
+  {% if settings.site_logo %}<link rel="icon" href="{{ settings.site_logo }}">{% endif %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+</head>
+<body class="login-page">
+  <div class="login-card">
+    <div class="login-brand">
+      {% if settings.site_logo %}
+      <img class="brand-logo" src="{{ settings.site_logo }}" alt="">
+      {% else %}
+      <span class="brand-mark">◆</span>
+      {% endif %}
+      <div>
+        <b>{{ settings.site_title }}</b>
+        <small>后台入口</small>
+      </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+      <div class="flash flash-{{ cat }}">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <div style="width:56px;height:56px;border-radius:50%;background:#eef0ff;display:grid;place-items:center;font-size:24px;margin:0 auto 16px;">🔒</div>
+    <p style="text-align:center;color:#7a8494;font-size:13px;margin:0 0 18px;">请输入二级密码进入后台</p>
+
+    <form method="post" class="login-form">
+      <label>
+        <span>二级密码</span>
+        <input type="password" name="password" placeholder="请输入二级密码" autofocus required>
+      </label>
+      <button class="btn-primary" type="submit">进入后台</button>
+    </form>
+
+    <a class="login-back" href="{{ url_for('index') }}">← 返回博客</a>
+  </div>
+</body>
+</html>

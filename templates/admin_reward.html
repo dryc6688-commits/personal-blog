@@ -1,0 +1,103 @@
+{% extends "admin_base.html" %}
+{% block title %}打赏管理{% endblock %}
+{% set TYPE_LABEL = {'wechat': '微信收款码', 'alipay': '支付宝收款码', 'qr': '自定义二维码', 'link': '第三方支付链接'} %}
+{% block content %}
+<div class="admin-toolbar">
+  <div>
+    <h1>打赏管理</h1>
+    <p class="muted">配置文章底部赞赏入口、收款码与第三方支付链接。</p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">打赏设置</div>
+  <form method="post">
+    <label class="switch">
+      <input type="checkbox" name="reward_enabled" {{ 'checked' if settings.reward_enabled == '1' }}>
+      <span>启用文章打赏</span>
+    </label>
+    <div class="field">
+      <label for="reward_title">标题</label>
+      <input id="reward_title" name="reward_title" value="{{ settings.reward_title }}">
+    </div>
+    <div class="field">
+      <label for="reward_desc">说明</label>
+      <textarea id="reward_desc" name="reward_desc" rows="2">{{ settings.reward_desc }}</textarea>
+    </div>
+    <div class="form-actions">
+      <button class="btn-primary" type="submit">保存设置</button>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <div class="card-title">添加收款方式</div>
+  <form method="post" action="{{ url_for('admin_reward_add') }}" class="reward-form">
+    <div class="field-row">
+      <div class="field">
+        <label for="name">名称</label>
+        <input id="name" name="name" required placeholder="微信赞赏 / 支付宝 / 第三方支付">
+      </div>
+      <div class="field">
+        <label for="type">类型</label>
+        <select id="type" name="type">
+          <option value="wechat">微信收款码</option>
+          <option value="alipay">支付宝收款码</option>
+          <option value="qr">自定义二维码</option>
+          <option value="link">第三方支付链接</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label for="reward_image">收款码图片（二维码类型使用）</label>
+      <div class="input-with-btn">
+        <input id="reward_image" name="image" placeholder="/static/uploads/qr.png">
+        <button type="button" class="btn-sm js-upload" data-target="#reward_image" data-accept="image/*">上传</button>
+      </div>
+    </div>
+    <div class="field">
+      <label for="url">支付链接（第三方支付类型使用）</label>
+      <input id="url" name="url" placeholder="https://...">
+    </div>
+    <div class="field">
+      <label for="note">备注</label>
+      <input id="note" name="note" placeholder="可选">
+    </div>
+    <div class="friend-form-foot">
+      <label class="switch"><input type="checkbox" name="enabled" checked><span>启用</span></label>
+      <button class="btn-primary" type="submit">+ 添加方式</button>
+    </div>
+  </form>
+</div>
+
+<div class="table-card">
+  <div class="table-title">已配置的收款方式</div>
+  <table class="admin-table">
+    <thead><tr><th>名称</th><th>类型</th><th>内容</th><th>状态</th><th class="actions-col">操作</th></tr></thead>
+    <tbody>
+      {% for m in methods %}
+      <tr>
+        <td class="title-cell">{{ m.name }}</td>
+        <td>{{ TYPE_LABEL.get(m.type, m.type) }}</td>
+        <td class="muted ellipsis">
+          {% if m.image %}{{ m.image }}{% elif m.url %}{{ m.url }}{% else %}—{% endif %}
+        </td>
+        <td>{% if m.enabled %}<span class="dot-pub">启用</span>{% else %}<span class="dot-draft">停用</span>{% endif %}</td>
+        <td class="actions-col">
+          <form method="post" action="{{ url_for('admin_reward_delete', method_id=m.id) }}" class="inline-form"
+                data-confirm="确定删除「{{ m.name }}」吗？">
+            <button class="btn-sm btn-danger" type="submit">删除</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if not methods %}<div class="empty-state"><p>还没有收款方式，先添加一个吧。</p></div>{% endif %}
+</div>
+
+<div class="tip-card">
+  <b>第三方支付</b>
+  <p>选择「第三方支付链接」并填写支付页地址，前台会以按钮形式打开该链接。微信 / 支付宝可上传对应的收款二维码。</p>
+</div>
+{% endblock %}

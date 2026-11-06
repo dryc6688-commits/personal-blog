@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>后台登录 · {{ settings.site_title }}</title>
+  {% if settings.site_logo %}<link rel="icon" href="{{ settings.site_logo }}">{% endif %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+</head>
+<body class="login-page">
+  <div class="login-card">
+    <div class="login-brand">
+      {% if settings.site_logo %}
+      <img class="brand-logo" src="{{ settings.site_logo }}" alt="">
+      {% else %}
+      <span class="brand-mark">◆</span>
+      {% endif %}
+      <div>
+        <b>{{ settings.site_title }}</b>
+        <small>内容管理后台</small>
+      </div>
+    </div>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+      <div class="flash flash-{{ cat }}">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+    <form method="post" class="login-form">
+      <label>
+        <span>用户名</span>
+        <input type="text" name="username" value="admin" placeholder="请输入用户名" autofocus required>
+      </label>
+      <label>
+        <span>密码</span>
+        <input type="password" name="password" placeholder="请输入密码" required>
+      </label>
+      <button class="btn-primary" type="submit">登录</button>
+    </form>
+    <p class="login-hint">默认账号：<code>admin</code> / <code>admin123</code>（登录后可在「用户管理」中修改）</p>
+    <a class="login-back" href="{{ url_for('index') }}">← 返回博客</a>
+  </div>
+</body>
+</html>

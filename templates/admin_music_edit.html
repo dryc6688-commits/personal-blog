@@ -1,0 +1,55 @@
+{% extends "admin_base.html" %}
+{% block title %}编辑曲目{% endblock %}
+{% block content %}
+<div class="admin-toolbar">
+  <div>
+    <h1>编辑曲目</h1>
+    <p class="muted">修改后保存即可。</p>
+  </div>
+  <a class="btn-ghost" href="{{ url_for('admin_music') }}">← 返回音乐管理</a>
+</div>
+
+<div class="card">
+  <form method="post" action="{{ url_for('admin_music_edit', track_id=track.id) }}" class="music-add-form">
+    <div class="field-row">
+      <div class="field">
+        <label for="title">曲名</label>
+        <input id="title" name="title" value="{{ track.title }}" required>
+      </div>
+      <div class="field">
+        <label for="artist">歌手</label>
+        <input id="artist" name="artist" value="{{ track.artist }}">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="platform">平台</label>
+        <select id="platform" name="platform">
+          {% for val, label in [('custom','直链音频'),('netease','网易云音乐'),('qq','QQ 音乐'),('soda','汽水音乐')] %}
+          <option value="{{ val }}" {{ 'selected' if track.platform == val }}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="ref">平台歌曲 ID / mid / 嵌入链接</label>
+        <input id="ref" name="ref" value="{{ track.ref }}">
+      </div>
+    </div>
+    <div class="field">
+      <label for="audio_url">音频直链</label>
+      <div class="input-with-btn">
+        <input id="audio_url" name="audio_url" value="{{ track.audio_url }}">
+        <button type="button" class="btn-sm js-upload" data-target="#audio_url" data-accept="audio/*">上传</button>
+      </div>
+    </div>
+    <div class="field">
+      <label for="cover">封面图</label>
+      <div class="input-with-btn">
+        <input id="cover" name="cover" value="{{ track.cover }}">
+        <button type="button" class="btn-sm js-upload" data-target="#cover" data-accept="image/*">上传</button>
+      </div>
+    </div>
+    <button class="btn-primary" type="submit">保存曲目</button>
+  </form>
+</div>
+{% endblock %}

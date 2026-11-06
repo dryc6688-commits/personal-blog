@@ -1,0 +1,250 @@
+{% extends "admin_base.html" %}
+{% block title %}{{ '编辑文章' if post.id else '写文章' }}{% endblock %}
+
+{% block content %}
+<div class="admin-toolbar">
+  <div>
+    <h1>{{ '编辑文章' if post.id else '写文章' }}</h1>
+    <p class="muted">正文使用富文本编辑器，可调整字号、粗细、颜色，也支持代码块。</p>
+    {% if post.id %}
+    <p class="muted post-id-line">
+      文章 ID：<code>#{{ post.id }}</code>
+      · <a href="{{ url_for('post_detail', post_id=post.id) }}" target="_blank">查看文章</a>
+      · <button type="button" class="btn-sm" data-copy="/post/{{ post.id }}">复制链接</button>
+    </p>
+    {% endif %}
+  </div>
+  <a class="btn-ghost" href="{{ url_for('admin_dashboard') }}">← 返回列表</a>
+</div>
+
+<form method="post" action="{{ url_for('admin_post_save') }}" class="edit-form" id="post-form">
+  {% if post.id %}<input type="hidden" name="id" value="{{ post.id }}">{% endif %}
+  <input type="hidden" name="content_format" value="html">
+  <input type="hidden" name="content" id="content" value="">
+
+  <div class="edit-layout">
+    <div class="edit-main">
+      <div class="card">
+        <div class="field">
+          <label for="title">标题</label>
+          <input id="title" name="title" value="{{ post.title }}" placeholder="给文章起一个标题" required>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="type">文章类型</label>
+            <select id="type" name="type">
+              <option value="image" {{ 'selected' if post.type == 'image' }}>图文（图片画廊）</option>
+              <option value="mixed" {{ 'selected' if post.type == 'mixed' }}>图文视频（正文自由排版）</option>
+              <option value="code" {{ 'selected' if post.type == 'code' }}>代码教程</option>
+              <option value="video" {{ 'selected' if post.type == 'video' }}>视频</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="excerpt">摘要</label>
+            <input id="excerpt" name="excerpt" value="{{ post.excerpt }}" placeholder="一句话介绍（可选）">
+          </div>
+        </div>
+
+        <div class="field">
+          <label>正文</label>
+          <div class="editor-shell">
+            <div class="editor-toolbar" id="editor-toolbar">
+              <select id="tb-size" title="字号">
+                <option value="">字号</option>
+                <option value="2">小</option>
+                <option value="3">正常</option>
+                <option value="4">较大</option>
+                <option value="5">大</option>
+                <option value="6">超大</option>
+                <option value="7">特大</option>
+              </select>
+              <span class="tb-sep"></span>
+              <button type="button" class="tb-btn" data-cmd="bold" title="加粗"><b>B</b></button>
+              <button type="button" class="tb-btn" data-cmd="italic" title="斜体"><i>I</i></button>
+              <button type="button" class="tb-btn" data-cmd="underline" title="下划线"><u>U</u></button>
+              <button type="button" class="tb-btn" data-cmd="strikeThrough" title="删除线"><s>S</s></button>
+              <label class="tb-color" title="文字颜色">
+                <span>A</span>
+                <input type="color" id="tb-color" value="#e11d48">
+              </label>
+              <span class="tb-sep"></span>
+              <button type="button" class="tb-btn tb-text" data-block="h2" title="大标题">H2</button>
+              <button type="button" class="tb-btn tb-text" data-block="h3" title="小标题">H3</button>
+              <button type="button" class="tb-btn tb-text" data-block="blockquote" title="引用">引用</button>
+              <button type="button" class="tb-btn" data-cmd="insertUnorderedList" title="无序列表">• 列表</button>
+              <button type="button" class="tb-btn tb-text" id="tb-code" title="插入代码块">代码块</button>
+              <button type="button" class="tb-btn tb-text" id="tb-link" title="插入链接">链接</button>
+              <button type="button" class="tb-btn tb-text" id="tb-image" title="插入图片（可多选）">图片</button>
+              <button type="button" class="tb-btn tb-text" id="tb-video" title="插入视频（可多个）">视频</button>
+              <span class="tb-sep"></span>
+              <button type="button" class="tb-btn tb-text" data-cmd="removeFormat" title="清除格式">清除格式</button>
+            </div>
+            <div class="rich-editor" id="rich-editor" contenteditable="true" data-placeholder="在这里写正文……">{{ content_html|safe }}</div>
+          </div>
+          <p class="hint">选中文字后可调整字号、粗细、颜色；把光标放到任意段落位置，用「图片」「视频」按钮插入媒体，即可实现多图、多视频与文字的段落式混排。</p>
+        </div>
+      </div>
+    </div>
+
+    <aside class="edit-side">
+      <div class="card">
+        <div class="field">
+          <label for="cover">封面图</label>
+          <div class="input-with-btn">
+            <input id="cover" name="cover" value="{{ post.cover }}" placeholder="/static/uploads/xxx.jpg">
+            <button type="button" class="btn-sm js-upload" data-target="#cover" data-accept="image/*">上传</button>
+          </div>
+          <img id="cover-preview" class="thumb" src="{{ post.cover }}" alt="" {% if not post.cover %}hidden{% endif %}>
+        </div>
+
+        <div class="field">
+          <label for="published">发布状态</label>
+          <label class="switch">
+            <input type="checkbox" name="published" id="published" {{ 'checked' if post.published }}>
+            <span>显示在首页</span>
+          </label>
+        </div>
+
+        <button class="btn-primary btn-block" type="submit">保存文章</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">文章分类</div>
+        <p class="hint" style="margin-top:0">可多选。前台点击分类会只显示该分类下的文章。</p>
+        <div class="cat-checks">
+          {% for c in all_categories %}
+          <label class="cat-check">
+            <input type="checkbox" name="categories" value="{{ c.id }}" {{ 'checked' if c.id in selected_cat_ids }}>
+            <span>{{ c.name }}</span>
+          </label>
+          {% endfor %}
+        </div>
+        {% if not all_categories %}<p class="hint">还没有分类，去 <a href="{{ url_for('admin_categories') }}">分类管理</a> 添加。</p>{% endif %}
+      </div>
+
+      <div class="card">
+        <div class="card-title">访问量设置</div>
+        <div class="field">
+          <label for="base_views">基础访问量</label>
+          <input id="base_views" name="base_views" type="number" min="0" value="{{ post.base_views or 0 }}">
+        </div>
+        <label class="switch">
+          <input type="checkbox" name="show_views" {{ 'checked' if post.show_views }}>
+          <span>前台显示访问量</span>
+        </label>
+        <p class="hint">显示数量 = 基础访问量 + 真实访问量；关闭后前台不显示。</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">访问与版权</div>
+        <label class="switch">
+          <input type="checkbox" name="is_private" {{ 'checked' if post.is_private }}>
+          <span>私密内容（仅通过右上角入口访问）</span>
+        </label>
+        <p class="hint">勾选后不会出现在首页、分类等公开页面，只能从右上角私密入口进入。</p>
+        <label class="switch">
+          <input type="checkbox" name="protected" id="protected" {{ 'checked' if post.password_hash }}>
+          <span>需要密码才能访问</span>
+        </label>
+        <div class="field" id="pwd-field">
+          <label for="post_password">访问密码</label>
+          <input id="post_password" name="post_password" type="password"
+                 placeholder="{{ '留空则保持原密码' if post.password_hash else '设置后访客需输入此密码' }}">
+          <p class="hint">取消勾选「需要密码」即可移除密码。</p>
+        </div>
+
+        <div class="field">
+          <label for="copyright_type">版权说明</label>
+          <select id="copyright_type" name="copyright_type">
+            {% for key, cp in copyright_types.items() %}
+            <option value="{{ key }}" {{ 'selected' if post.copyright_type == key }}>{{ cp.label }}{% if cp.text %} · {{ cp.text }}{% endif %}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label for="copyright_text">自定义版权文字（可选）</label>
+          <input id="copyright_text" name="copyright_text" value="{{ post.copyright_text }}"
+                 placeholder="留空则使用上方版权说明的默认文字">
+        </div>
+      </div>
+
+      <div class="card type-section" data-type="image">
+        <div class="card-title">图片画廊</div>
+        <div class="field">
+          <label for="images">图片地址（每行一个）</label>
+          <textarea id="images" name="images" rows="6" placeholder="/static/uploads/a.jpg">{{ image_list|join('\n') }}</textarea>
+          <button type="button" class="btn-sm js-upload" data-target="#images" data-accept="image/*" data-multi="1">+ 上传图片并插入</button>
+        </div>
+      </div>
+
+      <div class="card type-section" data-type="video">
+        <div class="card-title">视频设置</div>
+        <div class="field">
+          <label for="video_url">视频地址</label>
+          <div class="input-with-btn">
+            <input id="video_url" name="video_url" value="{{ post.video_url }}" placeholder="直链 mp4 或嵌入 iframe 地址">
+            <button type="button" class="btn-sm js-upload" data-target="#video_url" data-accept="video/*">上传</button>
+          </div>
+          <p class="hint">mp4/webm 会使用 HTML5 播放器；其他地址（如 B 站 iframe）会以嵌入方式显示。</p>
+        </div>
+        <div class="field">
+          <label for="video_poster">视频封面（可选）</label>
+          <div class="input-with-btn">
+            <input id="video_poster" name="video_poster" value="{{ post.video_poster }}" placeholder="/static/uploads/poster.jpg">
+            <button type="button" class="btn-sm js-upload" data-target="#video_poster" data-accept="image/*">上传</button>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</form>
+
+<div class="editor-modal" id="video-modal" hidden>
+  <div class="editor-modal-card">
+    <div class="editor-modal-head">
+      <span>插入视频</span>
+      <button type="button" class="v-close" id="video-modal-close" aria-label="关闭">×</button>
+    </div>
+    <div class="field">
+      <label for="video-url-input">视频地址</label>
+      <input id="video-url-input" placeholder="mp4/webm 直链，或 B 站 / YouTube 链接">
+      <p class="hint">支持 B 站 BV 链接、YouTube 链接和视频直链；也可以直接上传本地视频。可重复插入多个视频。</p>
+    </div>
+    <div class="editor-modal-actions">
+      <button type="button" class="btn-ghost" id="video-upload-btn">上传本地视频</button>
+      <button type="button" class="btn-primary" id="video-insert-btn">插入视频</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/editor.js') }}"></script>
+<script>
+  (function () {
+    var typeSel = document.getElementById('type');
+    var sections = document.querySelectorAll('.type-section');
+    function sync() {
+      sections.forEach(function (s) {
+        s.style.display = (s.dataset.type === typeSel.value) ? '' : 'none';
+      });
+    }
+    typeSel.addEventListener('change', sync);
+    sync();
+
+    var cover = document.getElementById('cover');
+    var preview = document.getElementById('cover-preview');
+    cover.addEventListener('input', function () {
+      if (cover.value) { preview.src = cover.value; preview.hidden = false; }
+      else { preview.hidden = true; }
+    });
+
+    var prot = document.getElementById('protected');
+    var pwdField = document.getElementById('pwd-field');
+    function syncPwd() { pwdField.style.display = prot.checked ? '' : 'none'; }
+    prot.addEventListener('change', syncPwd);
+    syncPwd();
+  })();
+</script>
+{% endblock %}

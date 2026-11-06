@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}{{ settings.private_label }} · {{ settings.site_title }}{% endblock %}
+{% block head %}<meta name="robots" content="noindex,nofollow">{% endblock %}
+
+{% block content %}
+<section class="locked-page private-locked">
+  <div class="locked-card">
+    <div class="locked-icon">🔒</div>
+    <h1 class="locked-title">{{ settings.private_label }}</h1>
+    <p class="locked-tip">{{ settings.private_desc or '请输入密码进入私密空间。' }}</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+      <div class="locked-error">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <form method="post" class="locked-form">
+      <input type="hidden" name="next" value="{{ next_path }}">
+      <input type="password" name="password" placeholder="请输入私密入口密码" autofocus required>
+      <button class="btn-primary" type="submit">进入私密空间</button>
+    </form>
+    <a class="locked-back" href="{{ url_for('index') }}">← 返回首页</a>
+  </div>
+</section>
+{% endblock %}

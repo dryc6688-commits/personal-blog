@@ -1,0 +1,55 @@
+{% extends "admin_base.html" %}
+{% block title %}分类管理{% endblock %}
+
+{% block content %}
+<div class="admin-toolbar">
+  <div>
+    <h1>分类管理</h1>
+    <p class="muted">一个文章可以同时属于多个分类；删除分类不会删除文章。</p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">添加分类</div>
+  <form method="post" action="{{ url_for('admin_categories') }}" class="cat-add-form">
+    <input name="name" placeholder="例如：摄影 / 代码 / 生活" maxlength="30" required>
+    <button class="btn-primary" type="submit">+ 添加分类</button>
+  </form>
+</div>
+
+<div class="table-card">
+  {% if categories %}
+  <table class="admin-table">
+    <thead>
+      <tr><th>分类名称</th><th>已发布文章</th><th class="actions-col">操作</th></tr>
+    </thead>
+    <tbody>
+      {% for c in categories %}
+      <tr>
+        <td class="title-cell">
+          <form method="post" action="{{ url_for('admin_category_rename', category_id=c.id) }}" class="rename-form">
+            <input name="name" value="{{ c.name }}" class="rename-input" maxlength="30" required>
+            <button class="btn-sm" type="submit">保存</button>
+          </form>
+        </td>
+        <td>{{ c.count }} 篇</td>
+        <td class="actions-col">
+          <form method="post" action="{{ url_for('admin_category_delete', category_id=c.id) }}"
+                class="inline-form" data-confirm="确定删除分类「{{ c.name }}」吗？文章不会被删除。">
+            <button class="btn-sm btn-danger" type="submit">删除</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state"><p>还没有分类，先在上方添加一个吧。</p></div>
+  {% endif %}
+</div>
+
+<div class="tip-card">
+  <b>说明</b>
+  <p>分类会显示在前台首页的筛选栏中。访客点击某个分类后，只展示该分类下的文章；同一篇文章可以勾选多个分类。</p>
+</div>
+{% endblock %}

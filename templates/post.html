@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}{{ post.title }} · {{ settings.site_title }}{% endblock %}
+
+{% block content %}
+<article class="post-detail">
+  <a class="back-link" href="{{ url_for('private_home') if post.is_private else url_for('index') }}">
+    {{ '← 返回私密空间' if post.is_private else '← 返回首页' }}
+  </a>
+
+  <header class="post-head">
+    <div class="post-kicker">
+      {% if post.categories %}
+      <div class="post-categories">
+        {% for c in post.categories %}
+        <a class="category-chip" href="{{ url_for('index', category=c.id) }}">{{ c.name }}</a>
+        {% endfor %}
+      </div>
+      {% endif %}
+      <time>{{ (post.created_at or '')[:10] }}</time>
+      {% if post.show_views %}<span class="view-count">阅读 {{ post.views }}</span>{% endif %}
+      {% if post.is_private %}<span class="lock-chip">🔒 私密内容</span>{% endif %}
+      {% if post.password_hash %}<span class="lock-chip">🔒 密码保护</span>{% endif %}
+    </div>
+    <h1 class="post-title">{{ post.title }}</h1>
+    {% if post.excerpt %}<p class="post-excerpt">{{ post.excerpt }}</p>{% endif %}
+  </header>
+
+  {% if post.type == 'image' and post.image_list %}
+  <div class="gallery">
+    {% for img in post.image_list %}
+    <figure class="gallery-item" data-lightbox="{{ img }}">
+      <img src="{{ img }}" alt="{{ post.title }} 图片 {{ loop.index }}" loading="lazy">
+    </figure>
+    {% endfor %}
+  </div>
+  {% elif post.cover and post.type != 'video' %}
+  <div class="post-cover"><img src="{{ post.cover }}" alt="{{ post.title }}"></div>
+  {% endif %}
+
+  {% if post.type == 'video' and post.video_url %}
+  <div class="video-wrap">
+    {% if post.video_url|is_video_file %}
+    <video controls playsinline {% if post.video_poster %}poster="{{ post.video_poster }}"{% endif %}>
+      <source src="{{ post.video_url }}">
+      你的浏览器不支持 HTML5 视频播放。
+    </video>
+    {% else %}
+    <div class="video-embed">
+      <iframe src="{{ post.video_url }}" frameborder="0" allowfullscreen
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <div class="prose">
+    {% if post.content_format == 'html' %}{{ post.content|safe }}{% else %}{{ post.content|md|safe }}{% endif %}
+  </div>
+
+  {% set cp = copyright_types.get(post.copyright_type, copyright_types['original']) %}
+  {% set cp_text = post.copyright_text or cp.text %}
+  {% if cp_text %}
+  <div class="copyright-card">
+    <div class="copyright-icon">©</div>
+    <div class="copyright-body">
+      <div class="copyright-head">{{ cp.label }}</div>
+      <p class="copyright-text">{{ cp_text }}</p>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if settings.likes_enabled == '1' %}
+  <div class="post-like">
+    <button class="like-btn {{ 'liked' if post.liked }}" id="like-btn" data-post-id="{{ post.id }}" type="button">
+      <span class="like-heart">♥</span>
+      <span class="like-count" id="like-count">{{ post.like_count }}</span>
+      <span class="like-label">点赞</span>
+    </button>
+  </div>
+  {% endif %}
+
+  {% if post.reward_enabled and post.reward_methods %}
+  <div class="reward-card">
+    <div class="reward-icon">☕</div>
+    <div class="reward-info">
+      <div class="reward-title">{{ settings.reward_title }}</div>
+      <p class="reward-desc">{{ settings.reward_desc }}</p>
+    </div>
+    <button class="btn-primary" id="reward-open" type="button">赞赏支持</button>
+  </div>
+
+  <div class="reward-modal" id="reward-modal" hidden>
+    <div class="reward-modal-card">
+      <button class="reward-modal-close" id="reward-close" aria-label="关闭">×</button>
+      <h3>{{ settings.reward_title }}</h3>
+      <p class="reward-modal-desc">{{ settings.reward_desc }}</p>
+      <div class="reward-methods">
+        {% for m in post.reward_methods %}
+        <div class="reward-method">
+          <div class="reward-method-name">{{ m.name }}</div>
+          {% if m.image %}
+          <img class="reward-qr" src="{{ m.image }}" alt="{{ m.name }}">
+          {% elif m.url %}
+          <a class="btn-primary" href="{{ m.url }}" target="_blank" rel="noopener">前往支付</a>
+          {% endif %}
+          {% if m.note %}<p class="reward-note">{{ m.note }}</p>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <footer class="post-footer">
+    <div class="post-footer-line"></div>
+    <a class="back-link" href="{{ url_for('private_home') if post.is_private else url_for('index') }}">
+      {{ '← 返回私密空间' if post.is_private else '← 浏览更多文章' }}
+    </a>
+  </footer>
+</article>
+
+<div class="lightbox" id="lightbox" hidden>
+  <button class="lightbox-close" id="lightbox-close" aria-label="关闭">×</button>
+  <img id="lightbox-img" alt="">
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/like.js') }}"></script>
+<script src="{{ url_for('static', filename='js/reward.js') }}"></script>
+{% endblock %}

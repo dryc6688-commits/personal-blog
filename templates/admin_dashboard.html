@@ -1,0 +1,56 @@
+{% extends "admin_base.html" %}
+{% set TYPE_LABEL = {'image': '图文', 'mixed': '图文视频', 'code': '代码教程', 'video': '视频'} %}
+{% block title %}文章管理{% endblock %}
+
+{% block content %}
+<div class="admin-toolbar">
+  <div>
+    <h1>文章管理</h1>
+    <p class="muted">共 {{ posts|length }} 篇文章。示例文章可直接删除；点击文章 ID 可复制链接。</p>
+  </div>
+  <a class="btn-primary" href="{{ url_for('admin_post_new') }}">+ 写文章</a>
+</div>
+
+<div class="table-card">
+  {% if posts %}
+  <table class="admin-table">
+    <thead>
+      <tr><th>标题</th><th>类型</th><th>状态</th><th>时间</th><th class="actions-col">操作</th></tr>
+    </thead>
+    <tbody>
+      {% for p in posts %}
+      <tr>
+        <td class="title-cell">
+          <a href="{{ url_for('post_detail', post_id=p.id) }}" target="_blank">{{ p.title }}</a>
+          <button type="button" class="post-id" data-copy="/post/{{ p.id }}" title="点击复制文章链接">#{{ p.id }}</button>
+          {% if p.is_private %}<span class="private-badge">私密</span>{% endif %}
+          {% if p.password_hash %}<span class="mini-lock" title="密码保护">🔒</span>{% endif %}
+          {% if p.excerpt %}<div class="row-sub">{{ p.excerpt }}</div>{% endif %}
+          {% if p.categories %}<div class="row-cats">{% for c in p.categories %}{{ c.name }}{% if not loop.last %} · {% endif %}{% endfor %}</div>{% endif %}
+        </td>
+        <td><span class="type-badge type-{{ p.type }}">{{ TYPE_LABEL.get(p.type, p.type) }}</span></td>
+        <td>{% if p.published %}<span class="dot-pub">已发布</span>{% else %}<span class="dot-draft">草稿</span>{% endif %}</td>
+        <td class="muted nowrap">{{ (p.created_at or '')[:10] }}</td>
+        <td class="actions-col">
+          <a class="btn-sm" href="{{ url_for('admin_post_edit', post_id=p.id) }}">编辑</a>
+          <form method="post" action="{{ url_for('admin_post_delete', post_id=p.id) }}"
+                class="inline-form" data-confirm="确定删除《{{ p.title }}》吗？此操作不可恢复。">
+            <button class="btn-sm btn-danger" type="submit">删除</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <p>还没有文章，<a href="{{ url_for('admin_post_new') }}">写一篇</a>吧。</p>
+  </div>
+  {% endif %}
+</div>
+
+<div class="tip-card">
+  <b>提示</b>
+  <p>「图片」「代码教程」「视频」三种类型的示例文章已自动生成，用于查看前台展示效果。确认样式后可直接删除。</p>
+</div>
+{% endblock %}

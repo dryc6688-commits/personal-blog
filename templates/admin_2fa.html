@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>两步验证 · {{ settings.site_title }}</title>
+  {% if settings.site_logo %}<link rel="icon" href="{{ settings.site_logo }}">{% endif %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+</head>
+<body class="login-page">
+  <div class="login-card">
+    <div class="login-brand">
+      {% if settings.site_logo %}
+      <img class="brand-logo" src="{{ settings.site_logo }}" alt="">
+      {% else %}
+      <span class="brand-mark">◆</span>
+      {% endif %}
+      <div>
+        <b>{{ settings.site_title }}</b>
+        <small>两步验证</small>
+      </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+      <div class="flash flash-{{ cat }}">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <div style="width:56px;height:56px;border-radius:50%;background:#eef0ff;display:grid;place-items:center;font-size:24px;margin:0 auto 16px;">🔐</div>
+    <p style="text-align:center;color:#7a8494;font-size:13px;margin:0 0 18px;">
+      管理员：{{ pending.username }}<br>请输入 Authenticator 动态验证码
+    </p>
+
+    <form method="post" class="login-form">
+      <label>
+        <span>6 位动态验证码</span>
+        <input name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
+               placeholder="000000" autocomplete="one-time-code" autofocus>
+      </label>
+      <button class="btn-primary" type="submit">验证并登录</button>
+    </form>
+
+    <details style="margin-top:18px;">
+      <summary style="cursor:pointer;color:#7a8494;font-size:13px;">使用一次性临时登录密钥</summary>
+      <form method="post" class="login-form" style="margin-top:12px;">
+        <label>
+          <span>临时登录密钥</span>
+          <input name="temp_key" placeholder="输入一次性密钥" autocomplete="off">
+        </label>
+        <button class="btn-ghost btn-block" type="submit">使用临时密钥登录</button>
+      </form>
+    </details>
+
+    <a class="login-back" href="{{ url_for('admin_login') }}">← 返回管理员登录</a>
+  </div>
+</body>
+</html>

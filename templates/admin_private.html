@@ -1,0 +1,47 @@
+{% extends "admin_base.html" %}
+{% block title %}私密入口{% endblock %}
+
+{% block content %}
+<div class="admin-toolbar">
+  <div>
+    <h1>私密入口</h1>
+    <p class="muted">配置右上角入口的名称、密码与启用状态。</p>
+  </div>
+  {% if settings.private_enabled == '1' %}
+  <a class="btn-ghost" href="{{ url_for('private_home') }}" target="_blank">查看私密空间 ↗</a>
+  {% endif %}
+</div>
+
+<form method="post" class="settings-form">
+  <div class="card">
+    <div class="card-title">入口设置</div>
+    <label class="switch">
+      <input type="checkbox" name="private_enabled" {{ 'checked' if settings.private_enabled == '1' }}>
+      <span>启用右上角私密入口</span>
+    </label>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="private_label">入口名称</label>
+        <input id="private_label" name="private_label" value="{{ settings.private_label }}" placeholder="私密空间">
+      </div>
+      <div class="field">
+        <label for="private_password">入口密码</label>
+        <input id="private_password" name="private_password" type="password" placeholder="留空则保持原密码">
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="private_desc">入口说明</label>
+      <textarea id="private_desc" name="private_desc" rows="2">{{ settings.private_desc }}</textarea>
+    </div>
+
+    <p class="hint">启用后，右上角会出现该入口。文章编辑中勾选「私密内容」的文章不会出现在首页、分类等公开页面，只能从这里输入密码访问。</p>
+    <p class="hint">当前密码：{{ '已设置' if settings.private_password_hash else '未设置' }}（默认密码 <code>123456</code>，请及时修改）。</p>
+  </div>
+
+  <div class="form-actions">
+    <button class="btn-primary" type="submit">保存私密入口设置</button>
+  </div>
+</form>
+{% endblock %}

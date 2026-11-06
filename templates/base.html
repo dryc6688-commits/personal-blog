@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ settings.site_title }}{% endblock %}</title>
+  <meta name="description" content="{{ settings.site_description }}">
+  {% if settings.site_logo %}<link rel="icon" href="{{ settings.site_logo }}">{% endif %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/highlight/github-dark.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body class="{{ 'has-player' if tracks }}">
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="{{ url_for('index') }}">
+        {% if settings.site_logo %}
+        <img class="brand-logo" src="{{ settings.site_logo }}" alt="{{ settings.site_title }}">
+        {% else %}
+        <span class="brand-mark">◆</span>
+        {% endif %}
+        <span class="brand-text">
+          <b>{{ settings.site_title }}</b>
+          <small>{{ settings.site_subtitle }}</small>
+        </span>
+      </a>
+      <nav class="site-nav">
+        <a href="{{ url_for('index') }}">首页</a>
+        <a href="{{ url_for('index') }}#posts">文章</a>
+        <a href="{{ url_for('friends_page') }}">友链</a>
+        {% if settings.private_enabled == '1' %}
+        <a class="private-entry" href="{{ url_for('private_home') }}">🔒 {{ settings.private_label }}</a>
+        {% endif %}
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-brand">{{ settings.site_title }}</div>
+      <p class="footer-desc">{{ settings.footer_text }}</p>
+      {% if settings.icp or settings.police %}
+      <div class="beian">
+        {% if settings.icp %}
+        <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener">{{ settings.icp }}</a>
+        {% endif %}
+        {% if settings.police %}
+        <a href="{{ settings.police_url or '#' }}" target="_blank" rel="noopener">{{ settings.police }}</a>
+        {% endif %}
+      </div>
+      {% endif %}
+      <div class="copyright">{{ settings.copyright }} · {{ current_year }}</div>
+    </div>
+  </footer>
+
+  {% include '_player.html' %}
+
+  {% if popup_config.enabled %}
+  {% set pmode = popup_config.content_mode %}
+  {% if pmode == 'image' and not popup_config.image %}{% set pmode = 'text' %}{% endif %}
+  {% set show_image = popup_config.image and pmode in ['image', 'both'] %}
+  {% set show_text = pmode in ['text', 'both'] %}
+  <div class="site-popup" id="site-popup" hidden>
+    <div class="site-popup-card mode-{{ pmode }}">
+      {% if popup_config.link_url %}
+      <a class="site-popup-link" href="{{ popup_config.link_url }}" target="{{ popup_config.link_target }}" rel="noopener">
+        {% if show_image %}<img class="site-popup-image" src="{{ popup_config.image }}" alt="">{% endif %}
+        {% if show_text %}
+        <h3 class="site-popup-title">{{ popup_config.title }}</h3>
+        {% if popup_config.content %}<p class="site-popup-content">{{ popup_config.content }}</p>{% endif %}
+        {% endif %}
+      </a>
+      {% else %}
+      {% if show_image %}<img class="site-popup-image" src="{{ popup_config.image }}" alt="">{% endif %}
+      {% if show_text %}
+      <h3 class="site-popup-title">{{ popup_config.title }}</h3>
+      {% if popup_config.content %}<p class="site-popup-content">{{ popup_config.content }}</p>{% endif %}
+      {% endif %}
+      {% endif %}
+      {% if popup_config.close_mode == 'manual' or popup_config.countdown > 0 %}
+      <div class="site-popup-footer">
+        <div class="site-popup-countdown" id="site-popup-countdown" hidden></div>
+        <button class="site-popup-close-btn" id="site-popup-close" type="button" hidden>关闭</button>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  <script id="popup-config" type="application/json">{{ popup_config|tojson }}</script>
+  {% endif %}
+
+  <script src="{{ url_for('static', filename='vendor/highlight/highlight.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/track.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/player.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/popup.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

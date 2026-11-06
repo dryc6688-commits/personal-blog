@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}后台{% endblock %} · {{ settings.site_title }}</title>
+  {% if settings.site_logo %}<link rel="icon" href="{{ settings.site_logo }}">{% endif %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/highlight/github-dark.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+</head>
+<body class="admin-body">
+  <header class="admin-header">
+    <div class="admin-header-inner">
+      <a class="admin-brand" href="{{ url_for('admin_dashboard') }}">
+        {% if settings.site_logo %}
+        <img class="brand-logo" src="{{ settings.site_logo }}" alt="">
+        {% else %}
+        <span class="brand-mark">◆</span>
+        {% endif %}
+        <span><b>{{ settings.site_title }}</b><small>管理后台</small></span>
+      </a>
+      <nav class="admin-nav">
+        <a href="{{ url_for('admin_dashboard') }}" class="{{ 'active' if request.endpoint == 'admin_dashboard' }}">文章</a>
+        <a href="{{ url_for('admin_categories') }}" class="{{ 'active' if request.endpoint == 'admin_categories' }}">分类</a>
+        <a href="{{ url_for('admin_analytics') }}" class="{{ 'active' if request.endpoint == 'admin_analytics' }}">统计</a>
+        <a href="{{ url_for('admin_friends') }}" class="{{ 'active' if request.endpoint == 'admin_friends' }}">友链</a>
+        <a href="{{ url_for('admin_popup') }}" class="{{ 'active' if request.endpoint == 'admin_popup' }}">弹窗</a>
+        <a href="{{ url_for('admin_likes') }}" class="{{ 'active' if request.endpoint == 'admin_likes' }}">点赞</a>
+        <a href="{{ url_for('admin_reward') }}" class="{{ 'active' if request.endpoint == 'admin_reward' }}">打赏</a>
+        <a href="{{ url_for('admin_music') }}" class="{{ 'active' if request.endpoint in ['admin_music','admin_music_edit'] }}">音乐</a>
+        <a href="{{ url_for('admin_users') }}" class="{{ 'active' if request.endpoint == 'admin_users' }}">用户</a>
+        <a href="{{ url_for('admin_private') }}" class="{{ 'active' if request.endpoint == 'admin_private' }}">私密</a>
+        <a href="{{ url_for('admin_settings') }}" class="{{ 'active' if request.endpoint == 'admin_settings' }}">设置</a>
+        <a href="{{ url_for('index') }}" target="_blank">查看站点 ↗</a>
+        <a href="{{ url_for('admin_logout') }}" class="logout">退出</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="admin-main">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+      <div class="flash flash-{{ cat }}">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,22 @@
+__pycache__/
+*.pyc
+.DS_Store
+.env
+secret_key
+
+# 一键安装脚本生成
+.venv/
+logs/
+blog.pid
+dist/
+
+blog.db
+static/uploads/*
+!static/uploads/seed/
+
+# 归档目录与旧版部署脚本，不随公开仓库分发
+backend/
+frontend/
+legacy/
+deploy/
+downloads_cleanup_manifest.txt

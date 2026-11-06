@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}友链 · {{ settings.site_title }}{% endblock %}
+
+{% block content %}
+<section class="friends-page">
+  <div class="friends-head">
+    <p class="hero-eyebrow">FRIENDS</p>
+    <h1>友情链接</h1>
+    <p class="friends-desc">一些值得访问的站点与朋友。</p>
+  </div>
+
+  {% if friends %}
+  <div class="friend-grid">
+    {% for f in friends %}
+    <a class="friend-card" href="{{ f.url }}" target="_blank" rel="noopener">
+      <div class="friend-logo">
+        {% if f.logo %}<img src="{{ f.logo }}" alt="{{ f.name }}" loading="lazy">{% else %}{{ f.name[:1] }}{% endif %}
+      </div>
+      <div class="friend-info">
+        <h3>{{ f.name }}</h3>
+        {% if f.description %}<p>{{ f.description }}</p>{% endif %}
+        <span>{{ f.url }}</span>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state"><p>还没有友链。</p></div>
+  {% endif %}
+</section>
+{% endblock %}

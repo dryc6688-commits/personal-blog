@@ -1,0 +1,166 @@
+{% extends "admin_base.html" %}
+{% block title %}数据统计{% endblock %}
+{% set EV = {'pageview':'页面访问','article_click':'文章点击','category_click':'分类点击','music_play':'音乐播放','code_copy':'代码复制','video_play':'视频播放','image_view':'图片查看'} %}
+{% block content %}
+<div class="admin-toolbar">
+  <div>
+    <h1>数据统计</h1>
+    <p class="muted">页面访问、点击互动、设备与用户分布。</p>
+  </div>
+  <div class="analytics-actions">
+    {% if demo_count %}
+    <form method="post" action="{{ url_for('admin_analytics_clear_demo') }}" class="inline-form"
+          data-confirm="确定清空演示数据吗？真实统计数据会保留。">
+      <button class="btn-sm" type="submit">清空演示数据（{{ demo_count }}）</button>
+    </form>
+    {% endif %}
+    <form method="post" action="{{ url_for('admin_analytics_clear') }}" class="inline-form"
+          data-confirm="确定清空全部统计数据吗？此操作不可恢复。">
+      <button class="btn-sm btn-danger" type="submit">清空全部统计</button>
+    </form>
+  </div>
+</div>
+
+{% if demo_count %}
+<div class="tip-card analytics-note">
+  <b>演示数据</b>
+  <p>当前包含 {{ demo_count }} 条演示统计数据，用于预览图表效果。清空演示数据后，将只记录真实的访问与点击。</p>
+</div>
+{% endif %}
+
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-label">总访问量 PV</div>
+    <div class="stat-value">{{ total_pv }}</div>
+    <div class="stat-sub">今日 {{ today_pv }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">独立访客 UV</div>
+    <div class="stat-value">{{ total_uv }}</div>
+    <div class="stat-sub">今日 {{ today_uv }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">总点击 / 互动</div>
+    <div class="stat-value">{{ total_clicks }}</div>
+    <div class="stat-sub">文章、分类、音乐、代码等</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">日均访问（近30天）</div>
+    <div class="stat-value">{{ avg_pv }}</div>
+    <div class="stat-sub">PV / 天</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">日均点击（近30天）</div>
+    <div class="stat-value">{{ avg_click }}</div>
+    <div class="stat-sub">互动 / 天</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">最近 14 天访问趋势</div>
+  <div class="chart-legend">
+    <span class="legend-dot pv"></span>访问量 PV
+    <span class="legend-dot uv"></span>独立访客 UV
+  </div>
+  <div class="chart">
+    {% for t in trend %}
+    <div class="chart-col" title="{{ t.day }}  PV {{ t.pv }} / UV {{ t.uv }}">
+      <div class="chart-bars">
+        <div class="bar bar-pv" style="height: {{ t.pv_h }}%"></div>
+        <div class="bar bar-uv" style="height: {{ t.uv_h }}%"></div>
+      </div>
+      <div class="chart-label">{{ t.label }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="analytics-two">
+  <div class="card">
+    <div class="card-title">访问设备分布</div>
+    {% for d in devices %}
+    <div class="dist-row">
+      <div class="dist-head"><span>{{ d.label }}</span><span>{{ d.pv }} PV · {{ d.uv }} UV</span></div>
+      <div class="dist-bar dist-{{ d.key }}"><span style="width: {{ d.pct }}%"></span></div>
+      <div class="dist-pct">{{ d.pct }}%</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="card">
+    <div class="card-title">用户分布</div>
+    <div class="dist-subtitle">浏览器</div>
+    {% for b in browsers %}
+    <div class="dist-line"><span>{{ b.browser }}</span><b>{{ b.c }}</b></div>
+    {% endfor %}
+    {% if not browsers %}<p class="hint">暂无数据</p>{% endif %}
+    <div class="dist-subtitle">操作系统</div>
+    {% for o in oses %}
+    <div class="dist-line"><span>{{ o.os }}</span><b>{{ o.c }}</b></div>
+    {% endfor %}
+    {% if not oses %}<p class="hint">暂无数据</p>{% endif %}
+    <div class="dist-subtitle">来源</div>
+    {% for r in referers %}
+    <div class="dist-line"><span class="ellipsis">{{ r.referer }}</span><b>{{ r.c }}</b></div>
+    {% endfor %}
+    {% if not referers %}<p class="hint">暂无外部来源</p>{% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">事件 / 点击统计</div>
+  <div class="event-grid">
+    {% for e in events %}
+    <div class="event-chip"><span>{{ e.label }}</span><b>{{ e.count }}</b></div>
+    {% endfor %}
+    {% if not events %}<p class="hint">暂无数据</p>{% endif %}
+  </div>
+</div>
+
+<div class="analytics-two">
+  <div class="table-card">
+    <div class="table-title">热门文章</div>
+    <table class="admin-table">
+      <thead><tr><th>文章</th><th>访问 / 点击</th></tr></thead>
+      <tbody>
+        {% for p in top_posts %}
+        <tr><td class="title-cell">{{ p.title }}</td><td>{{ p.c }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if not top_posts %}<div class="empty-state"><p>暂无数据</p></div>{% endif %}
+  </div>
+
+  <div class="table-card">
+    <div class="table-title">热门页面</div>
+    <table class="admin-table">
+      <thead><tr><th>页面</th><th>PV</th></tr></thead>
+      <tbody>
+        {% for p in top_pages %}
+        <tr><td class="title-cell">{{ p.path }}</td><td>{{ p.c }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if not top_pages %}<div class="empty-state"><p>暂无数据</p></div>{% endif %}
+  </div>
+</div>
+
+<div class="table-card">
+  <div class="table-title">最近事件</div>
+  <table class="admin-table">
+    <thead><tr><th>时间</th><th>事件</th><th>页面</th><th>设备</th><th>访客</th></tr></thead>
+    <tbody>
+      {% for r in recent %}
+      <tr>
+        <td class="muted nowrap">{{ r.created_at[5:16]|replace('T', ' ') }}</td>
+        <td>{{ EV.get(r.event, r.event) }}</td>
+        <td class="muted ellipsis">{{ r.path }}</td>
+        <td>{{ {'pc':'PC','mobile':'手机','tablet':'平板'}.get(r.device, r.device) }}</td>
+        <td class="muted">{{ r.visitor_id[:8] }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if not recent %}<div class="empty-state"><p>暂无数据</p></div>{% endif %}
+</div>
+{% endblock %}
