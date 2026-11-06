@@ -1,0 +1,297 @@
+/* ============================================================
+   Stack 杂志风
+   深色 Hero、大图卡片、杂志式首页
+   ============================================================ */
+
+body.theme-stack {
+  --bg: #f2f4f7;
+  --surface: #ffffff;
+  --ink: #111827;
+  --ink-soft: #374151;
+  --muted: #6b7280;
+  --line: #e2e5ea;
+  --accent: #ff5a3c;
+  --accent-ink: #d9482c;
+  --accent-soft: #fff0ec;
+  --radius: 16px;
+  --shadow: 0 18px 40px -28px rgba(16, 24, 40, .4);
+  --maxw: 1240px;
+
+  background: #f2f4f7;
+  color: var(--ink);
+}
+
+/* 顶栏 */
+body.theme-stack .site-header {
+  background: rgba(255, 255, 255, .94);
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 10px 28px -26px rgba(16, 24, 40, .5);
+}
+
+body.theme-stack .brand-mark {
+  background: linear-gradient(135deg, #ff5a3c, #ff9f43);
+  box-shadow: 0 10px 24px -12px rgba(255, 90, 60, .75);
+}
+
+body.theme-stack .site-nav a {
+  font-weight: 600;
+}
+
+body.theme-stack .site-nav a:hover {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  box-shadow: none;
+}
+
+/* Hero */
+body.theme-stack .hero {
+  margin: 18px clamp(16px, 3vw, 40px) 0;
+  border-radius: 28px;
+  background: #111827;
+  color: #fff;
+  overflow: hidden;
+}
+
+body.theme-stack .hero-inner {
+  padding: 84px clamp(24px, 4vw, 64px) 68px;
+}
+
+body.theme-stack .hero-eyebrow {
+  background: rgba(255, 90, 60, .16);
+  color: #ffb4a6;
+}
+
+body.theme-stack .hero-title {
+  font-family: var(--font-sans);
+  font-weight: 800;
+  letter-spacing: -.035em;
+  color: #fff;
+}
+
+body.theme-stack .hero-desc {
+  color: #cbd5e1;
+  max-width: 640px;
+}
+
+body.theme-stack .hero-glow {
+  right: -140px;
+  top: -200px;
+  background: radial-gradient(circle at 30% 30%, rgba(255, 90, 60, .38), rgba(255, 159, 67, .16) 46%, transparent 68%);
+}
+
+/* 分类与标题 */
+body.theme-stack .cat-pill {
+  border-radius: 8px;
+  background: #fff;
+  border-color: var(--line);
+}
+
+body.theme-stack .cat-pill:hover {
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: none;
+}
+
+body.theme-stack .cat-pill.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 10px 22px -14px rgba(255, 90, 60, .8);
+}
+
+body.theme-stack .section-head {
+  border-bottom: 0;
+  margin-bottom: 22px;
+}
+
+body.theme-stack .section-head h2 {
+  font-family: var(--font-sans);
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+body.theme-stack .section-head h2::before {
+  content: "";
+  width: 10px;
+  height: 28px;
+  border-radius: 4px;
+  background: var(--accent);
+}
+
+/* 文章卡片 */
+body.theme-stack .post-grid {
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+body.theme-stack .post-card {
+  border: 0;
+  background: #fff;
+  box-shadow: var(--shadow);
+}
+
+body.theme-stack .post-card:hover {
+  transform: translateY(-6px);
+  border-color: transparent;
+  box-shadow: 0 28px 60px -30px rgba(16, 24, 40, .55);
+}
+
+body.theme-stack .post-card:first-child {
+  grid-column: span 2;
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+}
+
+body.theme-stack .post-card:first-child .card-media {
+  aspect-ratio: auto;
+  min-height: 300px;
+  height: 100%;
+}
+
+body.theme-stack .post-card:first-child .card-body {
+  padding: 30px 32px;
+  justify-content: center;
+}
+
+body.theme-stack .post-card:first-child .card-title {
+  font-size: 27px;
+  line-height: 1.25;
+}
+
+body.theme-stack .post-card:first-child .card-excerpt {
+  -webkit-line-clamp: 4;
+}
+
+body.theme-stack .card-title {
+  font-weight: 750;
+}
+
+body.theme-stack .category-chip {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
+body.theme-stack a.category-chip:hover {
+  background: #ffe1d9;
+}
+
+body.theme-stack .card-placeholder.type-image {
+  background: linear-gradient(135deg, #ff5a3c, #ff9f43);
+}
+
+body.theme-stack .card-placeholder.type-code {
+  background: linear-gradient(135deg, #111827, #374151);
+}
+
+body.theme-stack .card-placeholder.type-video {
+  background: linear-gradient(135deg, #d9482c, #ff9f43);
+}
+
+/* 文章详情 */
+body.theme-stack .post-detail {
+  max-width: 880px;
+  margin-top: 36px;
+}
+
+body.theme-stack .post-title {
+  font-family: var(--font-sans);
+  font-weight: 800;
+  letter-spacing: -.03em;
+}
+
+body.theme-stack .post-cover {
+  border-radius: 18px;
+}
+
+body.theme-stack .prose img,
+body.theme-stack .gallery-item img {
+  border-radius: 12px;
+}
+
+/* 友链与按钮 */
+body.theme-stack .home-friend {
+  border: 0;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 10px 24px -20px rgba(16, 24, 40, .5);
+}
+
+body.theme-stack .home-friend:hover {
+  color: var(--accent-ink);
+  box-shadow: 0 16px 30px -18px rgba(16, 24, 40, .5);
+}
+
+body.theme-stack .btn-primary {
+  background: var(--accent);
+  box-shadow: 0 12px 24px -14px rgba(255, 90, 60, .8);
+}
+
+/* 页脚 */
+body.theme-stack .site-footer {
+  margin-top: 52px;
+  border: 0;
+  background: #111827;
+  color: #fff;
+}
+
+body.theme-stack .footer-brand {
+  color: #fff;
+}
+
+body.theme-stack .footer-desc,
+body.theme-stack .beian a,
+body.theme-stack .copyright {
+  color: rgba(255, 255, 255, .62);
+}
+
+body.theme-stack .beian a:hover {
+  color: #fff;
+}
+
+@media (max-width: 900px) {
+  body.theme-stack .post-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  body.theme-stack .post-card:first-child {
+    grid-column: span 2;
+    grid-template-columns: 1fr;
+  }
+
+  body.theme-stack .post-card:first-child .card-media {
+    aspect-ratio: 16 / 9;
+    min-height: 0;
+  }
+
+  body.theme-stack .post-card:first-child .card-body {
+    padding: 22px 24px;
+  }
+}
+
+@media (max-width: 640px) {
+  body.theme-stack .hero {
+    margin: 12px 12px 0;
+    border-radius: 20px;
+  }
+
+  body.theme-stack .hero-inner {
+    padding: 58px 20px 44px;
+  }
+
+  body.theme-stack .hero-title {
+    font-size: clamp(36px, 11vw, 52px);
+  }
+
+  body.theme-stack .post-grid {
+    grid-template-columns: 1fr;
+  }
+
+  body.theme-stack .post-card:first-child {
+    grid-column: auto;
+  }
+
+  body.theme-stack .post-card:first-child .card-title {
+    font-size: 22px;
+  }
+}

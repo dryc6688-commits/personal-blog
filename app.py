@@ -87,6 +87,7 @@ DEFAULT_SETTINGS = {
     "site_subtitle": "记录灵感 · 影像 · 代码",
     "site_description": "一个关于生活、摄影与编程的个人小站。",
     "site_logo": "",
+    "site_theme": "butterfly",
     "footer_text": "用代码记录生活",
     "icp": "粤ICP备00000000号-1",
     "police": "粤公网安备 00000000000000号",
@@ -138,6 +139,22 @@ COPYRIGHT_TYPES = {
     "cc_by_nc_sa": {"label": "CC BY-NC-SA 4.0", "text": "署名 - 非商业性使用 - 相同方式共享"},
     "public": {"label": "公共领域", "text": "可自由使用，无需署名"},
     "custom": {"label": "自定义", "text": ""},
+}
+
+# 前台主题（内置主题，CSS 级切换）
+THEME_OPTIONS = {
+    "butterfly": {
+        "name": "Butterfly 卡片风",
+        "desc": "圆角卡片、渐变色彩和封面图，视觉更丰富。",
+    },
+    "paper": {
+        "name": "PaperMod 极简风",
+        "desc": "留白充足、列表式排版，适合长时间阅读。",
+    },
+    "stack": {
+        "name": "Stack 杂志风",
+        "desc": "大图卡片、深色 Hero 和杂志式首页。",
+    },
 }
 
 
@@ -2201,6 +2218,11 @@ def admin_settings():
             else:
                 set_setting(key, request.form.get(key, ""))
 
+        theme = request.form.get("site_theme", "butterfly")
+        if theme not in THEME_OPTIONS:
+            theme = "butterfly"
+        set_setting("site_theme", theme)
+
         # 后台隐秘路径
         new_path = request.form.get("admin_secret_path", "").strip().lstrip("/")
         reserved = RESERVED_PATHS
@@ -2222,7 +2244,8 @@ def admin_settings():
 
     settings = get_settings()
     tracks = build_tracks()
-    return render_template("admin_settings.html", settings=settings, tracks=tracks)
+    return render_template("admin_settings.html", settings=settings, tracks=tracks,
+                           themes=THEME_OPTIONS)
 
 
 # --------------------------------------------------------------------------

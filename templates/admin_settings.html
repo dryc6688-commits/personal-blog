@@ -43,6 +43,24 @@
   </div>
 
   <div class="card">
+    <div class="card-title">前台主题</div>
+    <div class="field">
+      <label for="site_theme">选择主题</label>
+      <select id="site_theme" name="site_theme">
+        {% for key, item in themes.items() %}
+        <option value="{{ key }}" {{ 'selected' if settings.site_theme == key }}>{{ item.name }}</option>
+        {% endfor %}
+      </select>
+      <p class="hint">
+        {% for key, item in themes.items() %}
+        <b>{{ item.name }}</b>：{{ item.desc }}{% if not loop.last %}<br>{% endif %}
+        {% endfor %}
+      </p>
+      <p class="hint">保存后刷新前台即可看到效果。</p>
+    </div>
+  </div>
+
+  <div class="card">
     <div class="card-title">后台入口安全</div>
     <div class="field">
       <label for="admin_secret_path">隐秘入口路径</label>

@@ -8,9 +8,11 @@
   {% if settings.site_logo %}<link rel="icon" href="{{ settings.site_logo }}">{% endif %}
   <link rel="stylesheet" href="{{ url_for('static', filename='vendor/highlight/github-dark.min.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  {% set theme = settings.site_theme if settings.site_theme in ['butterfly', 'paper', 'stack'] else 'butterfly' %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='themes/' ~ theme ~ '/theme.css') }}">
   {% block head %}{% endblock %}
 </head>
-<body class="{{ 'has-player' if tracks }}">
+<body class="theme-{{ theme }} {{ 'has-player' if tracks }}">
   <header class="site-header">
     <div class="header-inner">
       <a class="brand" href="{{ url_for('index') }}">
