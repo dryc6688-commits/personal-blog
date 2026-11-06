@@ -1,104 +1,223 @@
-# 个人博客（单体版）
+# 个人博客 · 一键部署版
 
-当前默认使用 **单体版**：Flask + Jinja + SQLite，一个进程即可运行，不需要 Node、不需要构建、不需要前后端两套部署。
+一个开箱即用的个人博客系统，基于 **Flask + SQLite**。一个进程即可运行，不需要 Node.js、不需要前端构建、不需要单独安装数据库。
 
-## 一键安装
+自带完整后台、首次设置向导、Authenticator 两步验证和 Linux 一键安装脚本，适合个人站长、小团队和喜欢自己掌握数据的用户。
 
-要求：Python 3.9 或更高版本（Linux / macOS）。
+> GitHub 仓库：<https://github.com/dryc6688-commits/personal-blog>
+
+---
+
+## 项目特点
+
+- **一条命令部署**：自动创建虚拟环境、安装依赖、生成密钥、初始化数据库并启动。
+- **零前端构建**：使用 Jinja 模板和原生静态资源，不需要 Node.js、Vite 或 npm。
+- **首次设置向导**：部署完成后先设置隐秘路径、二级密码、管理员账号和 Authenticator，完成前站点不可正常使用，避免默认密码风险。
+- **安全默认配置**：随机 `SECRET_KEY`、PBKDF2-SHA256 密码哈希、登录失败限流、安全 Cookie、隐藏后台入口、TOTP 两步验证和一次性临时登录密钥。
+- **完整内容能力**：图文 / 代码教程 / 视频文章、分类、友链、音乐播放器、弹窗推送、点赞打赏、访问统计、文章密码、私密入口和私密文章。
+- **数据完全自持**：文章、配置、上传文件都在自己的服务器上；SQLite 单文件数据库，备份和迁移都简单。
+- **生产可用**：使用 Waitress 运行，支持 systemd 开机自启、后台启停、状态查看和日志。
+- **方便分发**：内置 `package.sh` 可生成不含个人数据的干净安装包。
+
+---
+
+## 快速开始（Linux 服务器）
+
+### 1. 环境要求
+
+- Linux 服务器（推荐 Ubuntu 22.04 / 24.04、Debian 12、Rocky Linux 9、AlmaLinux 9）
+- Python 3.9 或更高版本
+- `git`、`curl`
+- 如果使用 `--service`，需要 systemd 和 sudo 权限
+
+安装系统依赖：
+
+| 系统 | 命令 |
+|---|---|
+| Debian / Ubuntu | `sudo apt update && sudo apt install -y git curl python3 python3-venv python3-pip` |
+| RHEL / Rocky / AlmaLinux | `sudo dnf install -y git curl python3 python3-pip` |
+
+### 2. 一条命令安装
 
 ```bash
-cd 项目目录
-chmod +x install.sh start.sh stop.sh status.sh uninstall.sh run.sh package.sh
-./install.sh
+curl -fsSL https://raw.githubusercontent.com/dryc6688-commits/personal-blog/main/bootstrap.sh \
+  | bash -s -- --dir "$HOME/personal-blog" --host 0.0.0.0 --port 8000 --service
 ```
 
-安装脚本会自动完成：
+参数说明：
 
-1. 检查 Python 版本
-2. 创建 `.venv` 虚拟环境
-3. 安装依赖
-4. 生成随机会话密钥 `secret_key`
-5. 初始化数据库
-6. 后台启动服务
+| 参数 | 作用 |
+|---|---|
+| `--dir "$HOME/personal-blog"` | 安装目录 |
+| `--host 0.0.0.0` | 监听所有网卡，服务器 IP 才能访问 |
+| `--port 8000` | 博客监听端口 |
+| `--service` | 注册为 systemd 服务，开机自动启动 |
 
-安装完成后访问：
+> `--service` 会调用 `sudo systemctl`，安装过程中可能提示输入服务器密码。
+> 如果服务器没有 systemd 或不想注册服务，去掉 `--service`，之后用 `./start.sh` 启动即可。
 
-- 前台：http://127.0.0.1:8000
-- 首次设置：http://127.0.0.1:8000/setup
+### 3. 开放端口
+
+如果服务器启用了防火墙，需要放行 8000 端口：
+
+```bash
+sudo ufw allow 8000/tcp
+```
+
+云服务器还需要在控制台的 **安全组 / 防火墙** 中放行 `8000/TCP`。
+
+### 4. 打开首次设置
+
+在浏览器访问：
+
+```
+http://<服务器公网IP>:8000/setup
+```
+
+把 `<服务器公网IP>` 换成你的服务器公网 IP。不要用 `127.0.0.1`，那只在本机有效。
 
 首次访问会进入三步引导：
 
 1. 设置后台隐秘路径和二级密码
 2. 设置管理员用户名和密码
-3. 绑定 Authenticator，并保存一次性临时密钥
+3. 绑定 Authenticator，并保存一次性临时登录密钥
 
-完成引导前，站点不可正常使用；完成后按「隐秘路径 → 二级密码 → 管理员密码 → 动态验证码」登录后台。
+完成引导前，访问任何页面都会跳转到 `/setup`。**部署完成后请立即完成设置**，不要把未初始化完成的实例长期暴露在公网。
 
-### 安装选项
+完成后登录流程：
 
-```bash
-./install.sh --port 9000        # 使用 9000 端口
-./install.sh --host 127.0.0.1   # 只允许本机访问
-./install.sh --no-start         # 只安装，不启动
-sudo ./install.sh --service     # 注册为系统服务（Linux systemd；macOS 用普通用户运行）
+```
+http(s)://你的域名或服务器IP/隐秘路径
+  → 二级密码
+  → 管理员账号密码
+  → Authenticator 6 位动态验证码
+  → 后台
 ```
 
-### 常用命令
+---
+
+## 日常管理
+
+如果安装时使用了 `--service`：
 
 ```bash
+sudo systemctl status personal-blog
+sudo systemctl restart personal-blog
+sudo systemctl stop personal-blog
+sudo systemctl start personal-blog
+sudo journalctl -u personal-blog -f
+```
+
+如果没有使用系统服务：
+
+```bash
+cd ~/personal-blog
 ./start.sh     # 后台启动
 ./stop.sh      # 停止
 ./status.sh    # 查看状态
 ```
 
-日志位于 `logs/blog.log`。
+日志位置：
 
-### 系统服务（可选）
+```
+~/personal-blog/logs/blog.log
+```
 
-如果使用 `--service` 安装为系统服务，请用对应命令管理：
+---
+
+## 更新版本
+
+重新执行同一条安装命令即可。`bootstrap.sh` 会自动拉取最新代码，`install.sh` 会保留数据库和上传文件。
 
 ```bash
-# Linux systemd
-sudo systemctl status personal-blog
+curl -fsSL https://raw.githubusercontent.com/dryc6688-commits/personal-blog/main/bootstrap.sh \
+  | bash -s -- --dir "$HOME/personal-blog" --host 0.0.0.0 --port 8000 --service
+```
+
+> 大版本更新前建议先备份 `blog.db`、`secret_key` 和 `static/uploads/`。
+
+---
+
+## 数据与备份
+
+| 内容 | 位置 |
+|---|---|
+| 数据库 | `blog.db` |
+| 上传文件 | `static/uploads/` |
+| 会话密钥 | `secret_key` |
+| 运行配置（可选） | `.env` |
+| 日志 | `logs/blog.log` |
+
+备份命令：
+
+```bash
+cd ~/personal-blog
+tar -czf ~/blog-backup-$(date +%F).tar.gz blog.db secret_key static/uploads
+```
+
+恢复时把文件解压回原目录即可。`secret_key` 丢失会导致所有登录会话失效，但不会影响文章数据。
+
+---
+
+## 反向代理与 HTTPS（推荐）
+
+生产环境建议用 Nginx 或 Caddy 反向代理到 `127.0.0.1:8000`，并配置 HTTPS。
+
+Nginx 示例：
+
+```nginx
+server {
+    listen 80;
+    server_name blog.example.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+启用 HTTPS 后，在项目 `.env` 中加入：
+
+```bash
+SESSION_COOKIE_SECURE=1
+```
+
+然后重启服务：
+
+```bash
 sudo systemctl restart personal-blog
-sudo systemctl stop personal-blog
-
-# macOS launchd
-launchctl list | grep com.personal-blog
-launchctl unload ~/Library/LaunchAgents/com.personal-blog.plist
-launchctl load ~/Library/LaunchAgents/com.personal-blog.plist
 ```
 
-### 制作分发包
+---
 
-把项目发给别人前，先生成不含个人数据的安装包：
+## 安全说明
 
-```bash
-./package.sh
-```
+- 首次启动自动生成随机 `secret_key`，权限 `600`，不使用公开默认密钥。
+- 二级密码、管理员密码、私密入口密码、文章密码使用 **PBKDF2-SHA256（60 万次迭代 + 随机盐）**。
+- 二级密码、管理员登录、私密入口、文章密码连续失败 **8 次锁定 15 分钟**。
+- 后台入口隐藏，需要先访问隐秘路径并通过二级密码。
+- 支持 Authenticator TOTP 两步验证。
+- 一次性临时登录密钥不设有效期，只能使用一次，使用后立即失效。
+- Cookie 默认 `HttpOnly` + `SameSite=Strict`；HTTPS 环境请开启 `SESSION_COOKIE_SECURE=1`。
+- 默认关闭 Flask DEBUG 模式。
+- `.gitignore` 已排除数据库、密钥、上传文件和个人配置，不会误传到 GitHub。
 
-会生成 `dist/personal-blog-YYYYMMDD.tar.gz`，其中不包含：
+建议：
 
-- `blog.db`
-- `secret_key`
-- `.env`
-- `static/uploads/` 中除 `seed/` 外的上传文件
-- `deploy/backups/`
-- 已归档的 `backend/`、`frontend/`
+1. 部署完成后立即完成 `/setup` 向导。
+2. 尽快配置 HTTPS。
+3. 定期备份 `blog.db`、`secret_key` 和 `static/uploads/`。
+4. 不要公开 `blog.db` 和 `secret_key`。
 
-对方解压后执行：
+---
 
-```bash
-tar -xzf personal-blog-YYYYMMDD.tar.gz
-cd personal-blog-YYYYMMDD
-./install.sh
-```
+## 手动开发模式
 
-即可完成部署并进入首次设置向导。
-
-### 手动开发模式
-
-不想用脚本时：
+不想用一键脚本时：
 
 ```bash
 pip3 install -r requirements.txt
@@ -111,58 +230,126 @@ python3 app.py
 DEBUG=1 python3 app.py
 ```
 
-> macOS 的 AirPlay 占用 5000 端口，所以默认使用 8000。
+默认访问 `http://127.0.0.1:8000`。macOS 的 AirPlay 占用 5000 端口，所以项目默认使用 8000。
 
-### 反向代理 / HTTPS
+---
 
-生产环境建议用 Nginx 或 Caddy 反向代理到 `127.0.0.1:8000`，并配置 HTTPS。启用 HTTPS 后建议：
+## 技术栈
+
+| 组件 | 说明 |
+|---|---|
+| Python | 3.9+ |
+| Flask | Web 框架 |
+| Jinja2 | 页面模板 |
+| SQLite | 单文件数据库 |
+| Waitress | 生产 WSGI 服务器 |
+| pyotp | Authenticator TOTP |
+| qrcode | 二维码生成 |
+
+不需要 Node.js，不需要前端构建，不需要额外数据库服务。
+
+---
+
+## 项目结构
+
+```text
+app.py              主程序
+wsgi.py             WSGI 入口
+templates/          页面模板
+static/             前端资源与上传目录
+install.sh          一键安装
+bootstrap.sh        GitHub 远程安装引导
+start.sh            后台启动
+stop.sh             停止
+status.sh           查看状态
+uninstall.sh        卸载
+run.sh              前台运行入口
+package.sh          生成干净分发包
+requirements.txt    Python 依赖
+.env.example        配置示例
+```
+
+---
+
+## 常见问题
+
+### 端口被占用
 
 ```bash
-SESSION_COOKIE_SECURE=1 ./start.sh
+# 查看占用 8000 端口的进程
+sudo lsof -i :8000
 ```
 
-或写入 `.env`（参考 `.env.example`）。
-
-
-## 从 GitHub 一键安装
-
-本项目已发布到 GitHub：
-
-```
-https://github.com/dryc6688-commits/personal-blog
-```
-
-一行命令安装：
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/dryc6688-commits/personal-blog/main/bootstrap.sh | bash
-```
-
-带安装参数：
+换一个端口重新安装：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/dryc6688-commits/personal-blog/main/bootstrap.sh \
-  | bash -s -- --port 9000
+  | bash -s -- --dir "$HOME/personal-blog" --host 0.0.0.0 --port 9001 --service
 ```
 
-默认安装到 `~/personal-blog`，可用 `--dir` 指定：
+### 浏览器打不开服务器 IP
+
+依次检查：
+
+1. 安装命令里是否是 `--host 0.0.0.0`
+2. 服务器防火墙是否放行端口
+3. 云服务器安全组是否放行端口
+4. 服务是否正常运行
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/dryc6688-commits/personal-blog/main/bootstrap.sh \
-  | bash -s -- --dir /opt/personal-blog --port 8000
+sudo systemctl status personal-blog
+curl -I http://127.0.0.1:8000
 ```
 
-`bootstrap.sh` 会自动克隆仓库、更新已有代码，然后调用 `install.sh`。
+### Python 版本过低
 
-### 发布自己的副本
+```bash
+python3 --version
+```
 
-如果你 Fork 或复制了本项目，需要把 `bootstrap.sh` 里的仓库地址改成你自己的：
+需要 3.9 或更高版本。Ubuntu 20.04 等旧系统建议升级系统或使用新版发行版。
+
+### 创建虚拟环境失败
+
+Debian / Ubuntu 安装：
+
+```bash
+sudo apt install -y python3-venv
+```
+
+### 查看服务日志
+
+```bash
+sudo journalctl -u personal-blog -n 100 --no-pager
+```
+
+或：
+
+```bash
+tail -f ~/personal-blog/logs/blog.log
+```
+
+### 忘记 Authenticator，临时密钥也丢失
+
+如果数据库还能访问，可以临时关闭两步验证：
+
+```sql
+UPDATE settings SET value='0' WHERE key='admin_totp_enabled';
+```
+
+操作前请先备份 `blog.db`。
+
+---
+
+## 发布自己的副本
+
+如果你 Fork 或复制了本项目，需要把 `bootstrap.sh` 中的仓库地址改成你自己的：
 
 ```bash
 REPO_URL="${REPO_URL:-https://github.com/你的用户名/你的仓库.git}"
 ```
 
-然后提交并推送。README 里的 `dryc6688-commits/personal-blog` 也替换成你的仓库地址即可。
+README 中的 `dryc6688-commits/personal-blog` 也替换成你的仓库地址。
 
 首次上传到 GitHub：
 
@@ -176,107 +363,20 @@ git push -u origin main
 
 `.gitignore` 已排除数据库、密钥、上传文件和个人配置，不会把敏感数据传到 GitHub。
 
-## 功能
+---
 
-- 文章：图文 / 代码教程 / 视频 / 图文视频混排
-- 代码高亮 + 一键复制
-- 图片画廊、视频嵌入、灯箱
-- 分类筛选（一篇文章可多分类）
-- 友链管理（权重排序）
-- 音乐播放器（圆盘 / 音乐卡片、音量、进度）
-- 弹窗推送（纯图片 / 纯文字 / 图片+文字，手动关闭 / 点击外部关闭 / 倒计时）
-- 点赞、打赏、文章基础访问量
-- 文章密码、私密入口与私密文章
-- 数据统计与埋点
-- 用户管理、LOGO、备案信息、富文本编辑器
-- 文件上传
+## 制作离线分发包
 
-## 数据位置
-
-- 数据库：`blog.db`
-- 上传文件：`static/uploads/`
-- 会话密钥：`secret_key`
-- 运行配置（可选）：`.env`
-- 日志：`logs/blog.log`
-
-请定期备份 `blog.db`、`secret_key` 和 `static/uploads/`。
-
-## 目录说明
-
-```
-app.py            单体版后端
-templates/        页面模板
-static/           前端资源与上传文件
-blog.db           当前数据库
-requirements.txt  依赖
-backend/          前后端分离版后端（已停止，保留归档）
-frontend/         前后端分离版前端（已停止，保留归档）
-deploy/           分离版部署脚本 + 本次切换前的数据备份
-legacy/           空目录（原单体版文件已恢复到根目录）
+```bash
+./package.sh
 ```
 
-## 数据备份
+会生成 `dist/personal-blog-YYYYMMDD.tar.gz`，不包含：
 
-本次从分离版切回单体版前的完整备份在：
+- `blog.db`
+- `secret_key`
+- `.env`
+- 真实上传文件
+- 部署备份和归档目录
 
-```
-deploy/backups/
-```
-
-包含两套数据库和上传文件。确认新版数据无误后可自行清理。
-
-## 维护建议
-
-- 日常写文章只需运行 `./start.sh`
-- 不需要启动 Vite / API 两个服务
-- 不需要 Node.js
-- 修改页面直接改 `templates/` 和 `static/`
-- 定期备份 `blog.db` 和 `static/uploads/`
-
-## 安全加固（已启用）
-
-- **SECRET_KEY**：首次启动自动生成到 `secret_key`（权限 600），不再使用公开默认值。生产环境建议改用环境变量 `SECRET_KEY`。
-- **密码哈希**：二级密码、管理员密码、私密入口密码、文章密码改为 **PBKDF2-SHA256（60 万次迭代 + 随机盐）**；旧的 SHA-256 哈希会在下次成功登录 / 解锁时自动升级。
-- **失败限流**：二级密码、管理员登录、私密入口、文章密码连续失败 **8 次锁定 15 分钟**（进程内计数，重启后清零）。
-- **Cookie**：`HttpOnly` + `SameSite=Strict`；HTTPS 环境请设置 `SESSION_COOKIE_SECURE=1`。
-- **DEBUG 默认关闭**：开发时可 `DEBUG=1 python3 app.py`。
-- 首次部署会强制设置二级密码、管理员账号和 Authenticator，不再使用默认密码。
-- 请备份 `secret_key` 文件；删除后所有登录会话会失效（数据不受影响）。
-
-## Authenticator 两步验证
-
-后台 →「设置」→「两步验证（Authenticator）」：
-
-1. 点击「启用 Authenticator」
-2. 用 Google Authenticator / Microsoft Authenticator / Authy 扫描二维码
-3. 输入 App 显示的 6 位验证码确认绑定
-
-启用后的登录流程：
-
-```
-隐秘路径 → 二级密码 → 管理员密码 → Authenticator 动态验证码 → 后台
-```
-
-### 一次性临时登录密钥
-
-启用两步验证后，可在设置中点击「生成一次性临时登录密钥」：
-
-- 只显示一次
-- 不设有效期
-- 使用一次后立即失效
-- 在两步验证页面展开「使用一次性临时登录密钥」输入
-
-它用于手机丢失 / Authenticator 不可用时，仍然需要管理员密码。
-
-### 关闭 / 重新绑定
-
-- 关闭两步验证需要输入当前管理员密码
-- 「重新绑定 Authenticator」会生成新的密钥，旧绑定失效
-
-### 注意
-
-- TOTP 密钥保存在 `settings` 表中，请保护好 `blog.db`
-- 如果同时丢失 Authenticator 和临时密钥，可在数据库中临时关闭：
-  ```sql
-  UPDATE settings SET value='0' WHERE key='admin_totp_enabled';
-  ```
+对方解压后执行 `./install.sh` 即可完成部署。

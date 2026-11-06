@@ -19,7 +19,7 @@ else
   echo "后台进程：未运行"
 fi
 
-if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files 2>/dev/null | grep -q '^personal-blog\.service'; then
+if command -v systemctl >/dev/null 2>&1 && [ -f /etc/systemd/system/personal-blog.service ]; then
   if systemctl is-active --quiet personal-blog 2>/dev/null; then
     echo "systemd 服务：运行中"
     RUNNING=1

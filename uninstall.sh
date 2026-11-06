@@ -21,19 +21,17 @@ if [ "$(uname -s)" = "Darwin" ]; then
     rm -f "$PLIST"
     echo "已移除 launchd 服务。"
   fi
-elif command -v systemctl >/dev/null 2>&1; then
-  if systemctl list-unit-files 2>/dev/null | grep -q '^personal-blog\.service'; then
-    SUDO=""
-    if [ "$(id -u)" -ne 0 ]; then
-      if command -v sudo >/dev/null 2>&1; then
-        SUDO="sudo"
-      fi
+elif command -v systemctl >/dev/null 2>&1 && [ -f /etc/systemd/system/personal-blog.service ]; then
+  SUDO=""
+  if [ "$(id -u)" -ne 0 ]; then
+    if command -v sudo >/dev/null 2>&1; then
+      SUDO="sudo"
     fi
-    $SUDO systemctl disable --now personal-blog 2>/dev/null || true
-    $SUDO rm -f /etc/systemd/system/personal-blog.service
-    $SUDO systemctl daemon-reload 2>/dev/null || true
-    echo "已移除 systemd 服务。"
   fi
+  $SUDO systemctl disable --now personal-blog 2>/dev/null || true
+  $SUDO rm -f /etc/systemd/system/personal-blog.service
+  $SUDO systemctl daemon-reload 2>/dev/null || true
+  echo "已移除 systemd 服务。"
 fi
 
 echo "==> 删除虚拟环境与日志"

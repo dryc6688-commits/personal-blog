@@ -2,8 +2,8 @@
 # GitHub 远程一键安装
 #
 # 用法：
-#   curl -fsSL https://raw.githubusercontent.com/OWNER/REPO/main/bootstrap.sh | bash
-#   curl -fsSL ... | bash -s -- --port 9000
+#   curl -fsSL https://raw.githubusercontent.com/dryc6688-commits/personal-blog/main/bootstrap.sh \
+#     | bash -s -- --dir "$HOME/personal-blog" --host 0.0.0.0 --port 8000 --service
 #
 # 也可以本地测试：
 #   ./bootstrap.sh --repo /path/to/repo --dir /tmp/blog-test --port 8010
@@ -20,8 +20,8 @@ usage() {
 GitHub 远程一键安装
 
 用法：
-  curl -fsSL <bootstrap.sh 地址> | bash
-  curl -fsSL <bootstrap.sh 地址> | bash -s -- --port 9000
+  curl -fsSL https://raw.githubusercontent.com/dryc6688-commits/personal-blog/main/bootstrap.sh \\
+    | bash -s -- --dir "\$HOME/personal-blog" --host 0.0.0.0 --port 8000 --service
 
 选项：
   --repo URL        指定 Git 仓库地址
@@ -30,8 +30,8 @@ GitHub 远程一键安装
   -h, --help        显示帮助
 
 其余参数会原样传给 install.sh，例如：
-  --port 9000
-  --host 127.0.0.1
+  --port 8000
+  --host 0.0.0.0
   --service
   --no-start
 EOF

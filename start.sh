@@ -108,6 +108,12 @@ if [ "$READY" != "1" ]; then
 fi
 
 echo "博客已启动（PID ${NEW_PID}）"
-echo "  前台：http://127.0.0.1:$PORT"
-echo "  首次设置：http://127.0.0.1:$PORT/setup"
+if [ "$HOST" = "0.0.0.0" ] || [ "$HOST" = "::" ]; then
+  echo "  本机访问：http://127.0.0.1:$PORT"
+  echo "  服务器访问：http://<服务器公网IP>:$PORT"
+  echo "  首次设置：http://<服务器公网IP>:$PORT/setup"
+else
+  echo "  访问地址：http://$HOST:$PORT"
+  echo "  首次设置：http://$HOST:$PORT/setup"
+fi
 echo "  日志：$ROOT/logs/blog.log"

@@ -34,7 +34,7 @@ usage() {
   sudo ./install.sh --port 80 --service
 
 安装完成后访问：
-  http://127.0.0.1:8000/setup
+  http://<服务器公网IP>:8000/setup
   （首次访问会进入三步引导：二级密码、管理员账号、Authenticator）
 EOF
 }
@@ -263,6 +263,11 @@ EOF
     $SUDO systemctl daemon-reload
     $SUDO systemctl enable "$SERVICE_NAME"
     $SUDO systemctl restart "$SERVICE_NAME"
+    if ! $SUDO systemctl is-active --quiet "$SERVICE_NAME"; then
+      echo "服务启动失败，请查看日志：" >&2
+      $SUDO systemctl status "$SERVICE_NAME" --no-pager 2>&1 | tail -n 20 >&2 || true
+      exit 1
+    fi
     echo "已注册 systemd 服务：${UNIT}（用户：${RUN_USER}）"
     echo "查看状态：sudo systemctl status $SERVICE_NAME"
     echo "查看日志：sudo journalctl -u $SERVICE_NAME -f"
@@ -288,12 +293,22 @@ else
   echo "==> 已跳过自动启动"
 fi
 
-cat <<EOF
+if [ "$HOST" = "0.0.0.0" ] || [ "$HOST" = "::" ]; then
+  ACCESS_URL="http://<服务器公网IP>:$PORT"
+  LOCAL_URL="http://127.0.0.1:$PORT"
+else
+  ACCESS_URL="http://$HOST:$PORT"
+  LOCAL_URL=""
+fi
+
+if [ -n "$LOCAL_URL" ]; then
+  cat <<EOF
 
 安装完成。
 
-  前台地址：http://127.0.0.1:$PORT
-  首次设置：http://127.0.0.1:$PORT/setup
+  服务器访问：${ACCESS_URL}
+  首次设置：${ACCESS_URL}/setup
+  本机访问：${LOCAL_URL}
 
 首次访问会进入三步引导：
   1. 设置隐秘路径和二级密码
@@ -301,6 +316,21 @@ cat <<EOF
   3. 绑定 Authenticator，并保存一次性临时密钥
 
 EOF
+else
+  cat <<EOF
+
+安装完成。
+
+  访问地址：${ACCESS_URL}
+  首次设置：${ACCESS_URL}/setup
+
+首次访问会进入三步引导：
+  1. 设置隐秘路径和二级密码
+  2. 设置管理员用户名和密码
+  3. 绑定 Authenticator，并保存一次性临时密钥
+
+EOF
+fi
 
 if [ "$DO_SERVICE" = "1" ]; then
   if [ "$(uname -s)" = "Darwin" ]; then
