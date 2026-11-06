@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>首次设置 · {{ settings.site_title }}</title>
   {% if settings.site_logo %}<link rel="icon" href="{{ settings.site_logo }}">{% endif %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
@@ -46,6 +47,7 @@
     {% if step == 1 %}
     <p class="setup-note">首次部署需要先设置后台隐秘路径和二级密码。完成后才能继续。</p>
     <form method="post" action="{{ url_for('setup_step1') }}" class="login-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <label>
         <span>后台隐秘路径（不含斜杠）</span>
         <input name="secret_path" value="{{ current_path }}" placeholder="例如 my-blog-panel" required>
@@ -65,6 +67,7 @@
     {% elif step == 2 %}
     <p class="setup-note">设置管理员登录账号和密码。之后登录后台需要使用它。</p>
     <form method="post" action="{{ url_for('setup_step2') }}" class="login-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <label>
         <span>管理员用户名</span>
         <input name="username" value="{{ current_username }}" placeholder="admin" required>
@@ -91,6 +94,7 @@
       </div>
     </div>
     <form method="post" action="{{ url_for('setup_step3') }}" class="login-form" style="max-width:360px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <label>
         <span>6 位动态验证码</span>
         <input name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
@@ -99,6 +103,7 @@
       <button class="btn-primary" type="submit">完成绑定</button>
     </form>
     <form method="post" action="{{ url_for('setup_skip2fa') }}" style="max-width:360px;margin-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button class="btn-ghost btn-block" type="submit">暂不绑定，跳过</button>
     </form>
     <p class="setup-note" style="margin-top:10px;">跳过不会影响博客使用；登录后台后可在「设置 → 两步验证」中启用。</p>

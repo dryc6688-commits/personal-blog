@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>后台入口 · {{ settings.site_title }}</title>
   {% if settings.site_logo %}<link rel="icon" href="{{ settings.site_logo }}">{% endif %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
@@ -31,6 +32,7 @@
     <p style="text-align:center;color:#7a8494;font-size:13px;margin:0 0 18px;">请输入二级密码进入后台</p>
 
     <form method="post" class="login-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <label>
         <span>二级密码</span>
         <input type="password" name="password" placeholder="请输入二级密码" autofocus required>

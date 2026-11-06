@@ -11,11 +11,13 @@
     {% if demo_count %}
     <form method="post" action="{{ url_for('admin_analytics_clear_demo') }}" class="inline-form"
           data-confirm="确定清空演示数据吗？真实统计数据会保留。">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button class="btn-sm" type="submit">清空演示数据（{{ demo_count }}）</button>
     </form>
     {% endif %}
     <form method="post" action="{{ url_for('admin_analytics_clear') }}" class="inline-form"
           data-confirm="确定清空全部统计数据吗？此操作不可恢复。">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button class="btn-sm btn-danger" type="submit">清空全部统计</button>
     </form>
   </div>

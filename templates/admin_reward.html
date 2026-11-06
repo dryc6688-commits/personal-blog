@@ -12,6 +12,7 @@
 <div class="card">
   <div class="card-title">打赏设置</div>
   <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <label class="switch">
       <input type="checkbox" name="reward_enabled" {{ 'checked' if settings.reward_enabled == '1' }}>
       <span>启用文章打赏</span>
@@ -33,6 +34,7 @@
 <div class="card">
   <div class="card-title">添加收款方式</div>
   <form method="post" action="{{ url_for('admin_reward_add') }}" class="reward-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="field-row">
       <div class="field">
         <label for="name">名称</label>
@@ -86,6 +88,7 @@
         <td class="actions-col">
           <form method="post" action="{{ url_for('admin_reward_delete', method_id=m.id) }}" class="inline-form"
                 data-confirm="确定删除「{{ m.name }}」吗？">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn-sm btn-danger" type="submit">删除</button>
           </form>
         </td>

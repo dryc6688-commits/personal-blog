@@ -13,6 +13,7 @@
 <div class="card">
   <div class="card-title">添加友链</div>
   <form method="post" action="{{ url_for('admin_friends_add') }}" class="friend-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="field-row">
       <div class="field">
         <label>名称</label>
@@ -50,6 +51,7 @@
 {% for l in links %}
 <div class="card friend-edit-card">
   <form method="post" action="{{ url_for('admin_friends_update', link_id=l.id) }}" class="friend-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="field-row">
       <div class="field">
         <label>名称</label>

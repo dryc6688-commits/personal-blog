@@ -20,7 +20,7 @@ mkdir -p "$DEST" "$DIST"
 
 echo "==> 收集程序文件"
 cp app.py wsgi.py requirements.txt README.md .gitignore .env.example "$DEST"/
-cp install.sh start.sh stop.sh status.sh uninstall.sh run.sh bootstrap.sh "$DEST"/
+cp install.sh start.sh stop.sh status.sh uninstall.sh run.sh bootstrap.sh backup.sh "$DEST"/
 cp -R templates static "$DEST"/
 
 # 只保留示例上传资源，排除真实上传内容

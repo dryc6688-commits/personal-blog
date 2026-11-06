@@ -12,6 +12,7 @@
 <div class="card">
   <div class="card-title">添加用户</div>
   <form method="post" action="{{ url_for('admin_users_add') }}" class="user-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="field-row">
       <div class="field">
         <label for="username">用户名</label>
@@ -40,6 +41,7 @@
       <tr>
         <td class="title-cell">
           <form method="post" action="{{ url_for('admin_user_update', user_id=u.id) }}" class="user-update-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input name="username" value="{{ u.username }}" class="rename-input" required>
             <input name="display_name" value="{{ u.display_name }}" class="rename-input" placeholder="显示名称">
             <button class="btn-sm" type="submit">保存</button>
@@ -49,11 +51,13 @@
         <td class="muted nowrap">{{ (u.created_at or '')[:10] }}</td>
         <td class="actions-col">
           <form method="post" action="{{ url_for('admin_user_password', user_id=u.id) }}" class="inline-form user-pwd-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input name="password" type="password" placeholder="新密码" class="pwd-input">
             <button class="btn-sm" type="submit">改密</button>
           </form>
           <form method="post" action="{{ url_for('admin_user_delete', user_id=u.id) }}" class="inline-form"
                 data-confirm="确定删除用户「{{ u.username }}」吗？">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn-sm btn-danger" type="submit">删除</button>
           </form>
         </td>

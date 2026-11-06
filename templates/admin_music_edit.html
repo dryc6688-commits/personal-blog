@@ -11,6 +11,7 @@
 
 <div class="card">
   <form method="post" action="{{ url_for('admin_music_edit', track_id=track.id) }}" class="music-add-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="field-row">
       <div class="field">
         <label for="title">曲名</label>

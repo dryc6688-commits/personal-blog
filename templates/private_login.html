@@ -16,6 +16,7 @@
     {% endwith %}
 
     <form method="post" class="locked-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="next" value="{{ next_path }}">
       <input type="password" name="password" placeholder="请输入私密入口密码" autofocus required>
       <button class="btn-primary" type="submit">进入私密空间</button>

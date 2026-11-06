@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <title>初始化验证 · {{ settings.site_title }}</title>
+  {% if settings.site_logo %}<link rel="icon" href="{{ settings.site_logo }}">{% endif %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+</head>
+<body class="login-page">
+  <div class="login-card">
+    <div class="login-brand">
+      {% if settings.site_logo %}
+      <img class="brand-logo" src="{{ settings.site_logo }}" alt="">
+      {% else %}
+      <span class="brand-mark">◆</span>
+      {% endif %}
+      <div>
+        <b>{{ settings.site_title }}</b>
+        <small>首次设置验证</small>
+      </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+      <div class="flash flash-{{ cat }}">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <h2 style="margin:0 0 8px;">输入初始化令牌</h2>
+    <p class="hint" style="margin:0 0 18px;">
+      为防止未完成初始化的站点被他人抢先设置，请输入安装完成时终端输出的初始化令牌。
+    </p>
+
+    <form method="post" action="{{ url_for('setup_unlock') }}" class="login-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label>
+        <span>初始化令牌</span>
+        <input name="setup_token" placeholder="安装时输出的随机令牌" autocomplete="off" autofocus required>
+      </label>
+      <button class="btn-primary" type="submit">继续设置</button>
+    </form>
+
+    <p class="hint" style="margin-top:16px;">
+      令牌也保存在服务器的 <code>setup_token</code> 文件中。
+    </p>
+  </div>
+</body>
+</html>

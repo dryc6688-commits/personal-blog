@@ -12,6 +12,7 @@
 <div class="card">
   <div class="card-title">添加分类</div>
   <form method="post" action="{{ url_for('admin_categories') }}" class="cat-add-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input name="name" placeholder="例如：摄影 / 代码 / 生活" maxlength="30" required>
     <button class="btn-primary" type="submit">+ 添加分类</button>
   </form>
@@ -28,6 +29,7 @@
       <tr>
         <td class="title-cell">
           <form method="post" action="{{ url_for('admin_category_rename', category_id=c.id) }}" class="rename-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input name="name" value="{{ c.name }}" class="rename-input" maxlength="30" required>
             <button class="btn-sm" type="submit">保存</button>
           </form>
@@ -36,6 +38,7 @@
         <td class="actions-col">
           <form method="post" action="{{ url_for('admin_category_delete', category_id=c.id) }}"
                 class="inline-form" data-confirm="确定删除分类「{{ c.name }}」吗？文章不会被删除。">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn-sm btn-danger" type="submit">删除</button>
           </form>
         </td>

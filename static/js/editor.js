@@ -6,6 +6,11 @@
 (function () {
   "use strict";
 
+  function csrfToken() {
+    var m = document.querySelector('meta[name="csrf-token"]');
+    return m ? m.content : "";
+  }
+
   var editor = document.getElementById("rich-editor");
   if (!editor) return;
 
@@ -60,7 +65,7 @@
   function uploadFile(file) {
     var fd = new FormData();
     fd.append("file", file);
-    return fetch("/admin/upload", { method: "POST", body: fd })
+    return fetch("/admin/upload", { method: "POST", headers: { "X-CSRF-Token": csrfToken() }, body: fd })
       .then(function (r) { return r.json(); })
       .catch(function (e) { return { ok: false, error: e.message }; });
   }

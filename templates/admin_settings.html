@@ -10,6 +10,7 @@
 </div>
 
 <form method="post" class="settings-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="card">
     <div class="card-title">站点信息</div>
     <div class="field-row">
@@ -70,7 +71,7 @@
     <div class="field">
       <label for="admin_gate_password">后台二级密码</label>
       <input id="admin_gate_password" name="admin_gate_password" type="password" placeholder="留空保持原密码">
-      <p class="hint">进入后台前必须先输入二级密码；默认 <code>admin2026</code>，请及时修改。</p>
+      <p class="hint">进入后台前必须先输入二级密码。请设置独立密码，不要与其他密码相同。</p>
     </div>
   </div>
 
@@ -121,10 +122,12 @@
   <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:10px;">
     <a class="btn-ghost" href="{{ url_for('admin_totp_setup') }}">重新绑定 Authenticator</a>
     <form method="post" action="{{ url_for('admin_2fa_temp_key') }}" class="inline-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button class="btn-sm" type="submit">生成一次性临时登录密钥</button>
     </form>
   </div>
   <form method="post" action="{{ url_for('admin_2fa_disable') }}" style="margin-top:20px;max-width:360px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="field">
       <label for="disable_2fa_password">管理员密码（关闭验证）</label>
       <input id="disable_2fa_password" name="password" type="password" required placeholder="输入当前管理员密码">

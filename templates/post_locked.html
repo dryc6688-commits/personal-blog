@@ -16,6 +16,7 @@
     {% endwith %}
 
     <form method="post" class="locked-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="password" name="password" placeholder="请输入访问密码" autofocus required>
       <button class="btn-primary" type="submit">解锁阅读</button>
     </form>

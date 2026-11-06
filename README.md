@@ -10,7 +10,7 @@
 
 - **一条命令部署**：自动创建虚拟环境、安装依赖、生成密钥、初始化数据库并启动。
 - **零前端构建**：使用 Jinja 模板和原生静态资源，不需要 Node.js、Vite 或 npm。
-- **内置三套主题**：Butterfly 卡片风（默认）、PaperMod 极简风、Stack 杂志风，后台一键切换，无需改代码。
+- **内置六套主题**：Butterfly、PaperMod、Stack、Fluid、NexT、Blowfish，后台一键切换，无需改代码。
 - **首次设置向导**：必须先完成向导设置，无任何默认账号密码；Authenticator 可跳过，安全性大幅提高。
 - **推荐服务器**：阿里云、腾讯云的香港轻量云服务器即可，免去备案麻烦。
 - **开发说明**：本项目使用 DeepSeek V4.1 Flash 1017 构建，总消耗 338,485,755 Tokens。
@@ -29,7 +29,7 @@
 - 点赞功能 浏览量功能 均内置基础数值补充
 - 打赏功能（支持V/Q）
 - 全设备自适应尺寸展示
-- 内置3套主题
+- 内置 6 套主题：Butterfly / PaperMod / Stack / Fluid / NexT / Blowfish
 ---
 
 ## 快速开始（Linux 服务器）
@@ -89,7 +89,9 @@ http://<服务器公网IP>:8000/setup
 
 把 `<服务器公网IP>` 换成你的服务器公网 IP。
 
-首次访问会进入三步引导：
+首次访问需要先输入**初始化令牌**。安装完成时终端会输出「首次设置令牌」，也保存在项目根目录的 `setup_token` 文件中（权限 `600`）。完成初始化后该文件会自动删除。
+
+验证令牌后进入三步引导：
 
 1. 设置后台隐秘路径和二级密码
 2. 设置管理员用户名和密码
@@ -149,6 +151,9 @@ cd ~/personal-blog
 | **Butterfly 卡片风**（默认） | 圆角卡片、柔和渐变、封面图，视觉更丰富 |
 | **PaperMod 极简风** | 留白充足、列表式排版，适合长时间阅读 |
 | **Stack 杂志风** | 深色 Hero、大图卡片、杂志式首页 |
+| **Fluid 清新风** | 蓝青渐变、轻盈卡片和清爽留白 |
+| **NexT 经典风** | 黑白排版、经典博客气质，阅读优先 |
+| **Blowfish 暗夜风** | 深色背景、霓虹渐变和彩色卡片，适合夜间浏览 |
 
 选择后保存，刷新前台即可生效。
 
@@ -158,6 +163,9 @@ cd ~/personal-blog
 static/themes/butterfly/theme.css
 static/themes/paper/theme.css
 static/themes/stack/theme.css
+static/themes/fluid/theme.css
+static/themes/next/theme.css
+static/themes/blowfish/theme.css
 ```
 
 需要自定义颜色或细节时，直接修改对应主题的 CSS 即可，不会影响后台管理页面。
@@ -185,11 +193,23 @@ curl -fsSL https://raw.githubusercontent.com/dryc6688-commits/personal-blog/main
 | 运行配置（可选） | `.env` |
 | 日志 | `logs/blog.log` |
 
-备份命令：
+手动备份：
 
 ```bash
 cd ~/personal-blog
 tar -czf ~/blog-backup-$(date +%F).tar.gz blog.db secret_key static/uploads
+```
+
+也可以使用内置备份脚本：
+
+```bash
+./backup.sh
+```
+
+脚本会备份数据库、`secret_key`、`.env` 和上传文件到 `backups/`，默认保留 14 天。建议加入 cron：
+
+```bash
+0 3 * * * /home/你的用户名/personal-blog/backup.sh >> /home/你的用户名/personal-blog/logs/backup.log 2>&1
 ```
 
 恢复时把文件解压回原目录即可。`secret_key` 丢失会导致所有登录会话失效，但不会影响文章数据。
@@ -217,7 +237,13 @@ server {
 }
 ```
 
-启用 HTTPS 后，在项目 `.env` 中加入：
+反向代理场景请在 `.env` 中加入：
+
+```bash
+TRUST_PROXY=1
+```
+
+启用 HTTPS 后同时加入：
 
 ```bash
 SESSION_COOKIE_SECURE=1
@@ -233,12 +259,19 @@ sudo systemctl restart personal-blog
 
 ## 安全说明
 
+- 首次初始化需要安装脚本生成的**初始化令牌**，防止未完成设置的站点被他人抢先接管。
+- 所有 POST 表单和 AJAX 写操作带 **CSRF 校验**，Cookie 同时启用 `SameSite=Strict`。
 - 首次启动自动生成随机 `secret_key`，权限 `600`，不使用公开默认密钥。
 - 二级密码、管理员密码、私密入口密码、文章密码使用 **PBKDF2-SHA256（60 万次迭代 + 随机盐）**。
-- 二级密码、管理员登录、私密入口、文章密码连续失败 **8 次锁定 15 分钟**。
+- 二级密码、管理员登录、私密入口、文章密码连续失败 **8 次锁定 15 分钟**，限流按真实 IP 计算，支持可信反向代理。
 - 后台入口隐藏，需要先访问隐秘路径并通过二级密码。
 - 支持 Authenticator TOTP 两步验证，可在首次向导中跳过，之后在后台随时启用。
 - 一次性临时登录密钥不设有效期，只能使用一次，使用后立即失效。
+- 管理员会话 **60 分钟无操作自动过期**，最长 **12 小时**。
+- 已移除默认管理员密码兜底；历史默认私密密码 `123456` 会强制失效。
+- 禁用 SVG 上传，降低存储型 XSS 风险。
+- 安全响应头：`CSP`、`X-Frame-Options`、`X-Content-Type-Options`、`Referrer-Policy`、`Permissions-Policy`；HTTPS 下自动启用 HSTS。
+- 关键操作写入 `logs/audit.log`，便于排查异常登录和设置变更。
 - Cookie 默认 `HttpOnly` + `SameSite=Strict`；HTTPS 环境请开启 `SESSION_COOKIE_SECURE=1`。
 - 默认关闭 Flask DEBUG 模式。
 - `.gitignore` 已排除数据库、密钥、上传文件和个人配置，不会误传到 GitHub。
@@ -286,6 +319,16 @@ sudo lsof -i :8000
 curl -fsSL https://raw.githubusercontent.com/dryc6688-commits/personal-blog/main/bootstrap.sh \
   | bash -s -- --dir "$HOME/personal-blog" --host 0.0.0.0 --port 9001 --service
 ```
+
+### 初始化令牌在哪里
+
+安装完成时终端会输出「首次设置令牌」，也保存在：
+
+```bash
+cat ~/personal-blog/setup_token
+```
+
+完成初始化后文件会自动删除。如果已经完成初始化，就不再需要该令牌。
 
 ### 浏览器打不开服务器 IP
 

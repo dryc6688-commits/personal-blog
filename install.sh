@@ -6,7 +6,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
 
-chmod +x install.sh start.sh stop.sh status.sh uninstall.sh run.sh 2>/dev/null || true
+chmod +x install.sh start.sh stop.sh status.sh uninstall.sh run.sh backup.sh 2>/dev/null || true
 
 HOST="${HOST:-0.0.0.0}"
 PORT="${PORT:-8000}"
@@ -137,6 +137,7 @@ if not any(line.strip().startswith("# 由 install.sh") for line in out):
 with open(path, "w", encoding="utf-8") as f:
     f.writelines(out)
 PY
+chmod 600 .env 2>/dev/null || true
 
 
 if [ ! -x ".venv/bin/python" ]; then
@@ -173,6 +174,44 @@ chmod 600 secret_key 2>/dev/null || true
 echo "[5/5] 初始化数据库 ..."
 .venv/bin/python -c "import app" >/dev/null
 mkdir -p logs
+chmod 700 logs 2>/dev/null || true
+chmod 600 blog.db 2>/dev/null || true
+
+# 首次设置令牌，防止未初始化站点被他人抢先设置
+SETUP_DONE=$(.venv/bin/python - <<'PY'
+import sqlite3
+
+db = sqlite3.connect("blog.db")
+row = db.execute("SELECT value FROM settings WHERE key='setup_completed'").fetchone()
+print(row[0] if row and row[0] else "0")
+db.close()
+PY
+)
+SETUP_TOKEN=""
+if [ "$SETUP_DONE" != "1" ]; then
+  if [ ! -s setup_token ]; then
+    .venv/bin/python - <<'PY'
+import os
+import secrets
+
+token = secrets.token_urlsafe(24)
+with open("setup_token", "w", encoding="utf-8") as f:
+    f.write(token)
+os.chmod("setup_token", 0o600)
+PY
+  fi
+  chmod 600 setup_token 2>/dev/null || true
+  SETUP_TOKEN="$(cat setup_token 2>/dev/null || true)"
+else
+  rm -f setup_token
+fi
+
+TOKEN_LINES=""
+if [ -n "$SETUP_TOKEN" ]; then
+  TOKEN_LINES="  首次设置令牌：${SETUP_TOKEN}
+  （首次设置时需要；完成初始化后会自动失效）
+"
+fi
 
 if [ "$DO_SERVICE" = "1" ]; then
   echo "==> 注册系统服务 ..."
@@ -301,19 +340,25 @@ else
   LOCAL_URL=""
 fi
 
+if [ "$SETUP_DONE" = "1" ]; then
+  SETUP_BLOCK="  站点已完成初始化，可直接访问。"
+else
+  SETUP_BLOCK="  首次设置：${ACCESS_URL}/setup
+
+首次访问会进入三步引导：
+  1. 设置隐秘路径和二级密码
+  2. 设置管理员用户名和密码
+  3. 绑定 Authenticator，并保存一次性临时密钥"
+fi
+
 if [ -n "$LOCAL_URL" ]; then
   cat <<EOF
 
 安装完成。
 
+${TOKEN_LINES}${SETUP_BLOCK}
   服务器访问：${ACCESS_URL}
-  首次设置：${ACCESS_URL}/setup
   本机访问：${LOCAL_URL}
-
-首次访问会进入三步引导：
-  1. 设置隐秘路径和二级密码
-  2. 设置管理员用户名和密码
-  3. 绑定 Authenticator，并保存一次性临时密钥
 
 EOF
 else
@@ -321,13 +366,8 @@ else
 
 安装完成。
 
+${TOKEN_LINES}${SETUP_BLOCK}
   访问地址：${ACCESS_URL}
-  首次设置：${ACCESS_URL}/setup
-
-首次访问会进入三步引导：
-  1. 设置隐秘路径和二级密码
-  2. 设置管理员用户名和密码
-  3. 绑定 Authenticator，并保存一次性临时密钥
 
 EOF
 fi

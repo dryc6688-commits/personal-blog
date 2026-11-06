@@ -12,7 +12,12 @@
   {% endif %}
 </div>
 
+{% if settings.private_password_reset_required == '1' %}
+<div class="flash flash-error" style="margin-bottom:16px;">旧版默认私密密码已失效，请重新设置入口密码后再启用。</div>
+{% endif %}
+
 <form method="post" class="settings-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="card">
     <div class="card-title">入口设置</div>
     <label class="switch">
@@ -37,7 +42,7 @@
     </div>
 
     <p class="hint">启用后，右上角会出现该入口。文章编辑中勾选「私密内容」的文章不会出现在首页、分类等公开页面，只能从这里输入密码访问。</p>
-    <p class="hint">当前密码：{{ '已设置' if settings.private_password_hash else '未设置' }}（默认密码 <code>123456</code>，请及时修改）。</p>
+    <p class="hint">当前密码：{{ '已设置' if settings.private_password_hash else '未设置' }}。旧版默认密码 <code>123456</code> 已失效，请设置独立密码。</p>
   </div>
 
   <div class="form-actions">

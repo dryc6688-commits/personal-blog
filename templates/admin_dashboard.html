@@ -35,6 +35,7 @@
           <a class="btn-sm" href="{{ url_for('admin_post_edit', post_id=p.id) }}">编辑</a>
           <form method="post" action="{{ url_for('admin_post_delete', post_id=p.id) }}"
                 class="inline-form" data-confirm="确定删除《{{ p.title }}》吗？此操作不可恢复。">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn-sm btn-danger" type="submit">删除</button>
           </form>
         </td>

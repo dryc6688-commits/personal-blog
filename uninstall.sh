@@ -36,6 +36,7 @@ fi
 
 echo "==> 删除虚拟环境与日志"
 rm -rf .venv logs blog.pid __pycache__
+rm -f setup_token
 
 if [ "$PURGE" = "1" ]; then
   echo

@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>两步验证 · {{ settings.site_title }}</title>
   {% if settings.site_logo %}<link rel="icon" href="{{ settings.site_logo }}">{% endif %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
@@ -33,6 +34,7 @@
     </p>
 
     <form method="post" class="login-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <label>
         <span>6 位动态验证码</span>
         <input name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
@@ -44,6 +46,7 @@
     <details style="margin-top:18px;">
       <summary style="cursor:pointer;color:#7a8494;font-size:13px;">使用一次性临时登录密钥</summary>
       <form method="post" class="login-form" style="margin-top:12px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label>
           <span>临时登录密钥</span>
           <input name="temp_key" placeholder="输入一次性密钥" autocomplete="off">

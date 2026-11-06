@@ -12,6 +12,7 @@
 <div class="card">
   <div class="card-title">播放器外观</div>
   <form method="post" action="{{ url_for('admin_music_settings') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="field-row">
       <div class="field">
         <label for="player_style">播放器样式</label>
@@ -32,6 +33,7 @@
 <div class="card">
   <div class="card-title">添加曲目</div>
   <form method="post" action="{{ url_for('admin_music_add') }}" class="music-add-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="field-row">
       <div class="field">
         <label for="title">曲名</label>
@@ -108,6 +110,7 @@
           <a class="btn-sm" href="{{ url_for('admin_music_edit', track_id=t.id) }}">编辑</a>
           <form method="post" action="{{ url_for('admin_music_delete', track_id=t.id) }}"
                 class="inline-form" data-confirm="确定删除《{{ t.title }}》吗？">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn-sm btn-danger" type="submit">删除</button>
           </form>
         </td>

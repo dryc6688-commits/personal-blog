@@ -30,16 +30,20 @@ import qrcode
 from flask import (Flask, abort, flash, g, jsonify, redirect, render_template,
                    request, session, url_for)
 from markdown import Markdown
+from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "blog.db")
 UPLOAD_DIR = os.path.join(BASE_DIR, "static", "uploads")
+LOG_DIR = os.path.join(BASE_DIR, "logs")
+SETUP_TOKEN_FILE = os.path.join(BASE_DIR, "setup_token")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+os.makedirs(LOG_DIR, exist_ok=True)
 
 ALLOWED_EXT = {
-    "png", "jpg", "jpeg", "gif", "webp", "svg",
+    "png", "jpg", "jpeg", "gif", "webp",
     "mp4", "webm", "ogg", "mov", "m4v",
     "mp3", "wav", "m4a", "aac", "flac",
 }
@@ -79,6 +83,14 @@ app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Strict"
 app.config["SESSION_COOKIE_SECURE"] = os.environ.get("SESSION_COOKIE_SECURE", "0") == "1"
 app.config["MAX_CONTENT_LENGTH"] = 512 * 1024 * 1024  # 512MB
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=12)
+app.config["SESSION_REFRESH_EACH_REQUEST"] = True
+
+# 只有明确位于可信反向代理之后时才信任代理头
+if os.environ.get("TRUST_PROXY", "0") == "1":
+    app.wsgi_app = ProxyFix(
+        app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=0, x_prefix=0
+    )
 
 md = Markdown(extensions=["fenced_code", "tables", "nl2br", "sane_lists", "toc"])
 
@@ -118,16 +130,14 @@ DEFAULT_SETTINGS = {
     "private_enabled": "0",
     "private_label": "私密空间",
     "private_desc": "该区域内容仅通过右上角入口访问。",
-    "private_password_hash": generate_password_hash("123456", method="pbkdf2:sha256:600000"),
-    "admin_secret_path": "console-8f3c2a",
-    "admin_gate_password_hash": generate_password_hash("admin2026", method="pbkdf2:sha256:600000"),
+    "admin_secret_path": "setup-" + secrets.token_hex(4),
+    "admin_gate_password_hash": generate_password_hash(secrets.token_urlsafe(32), method="pbkdf2:sha256:600000"),
     "admin_totp_enabled": "0",
     "admin_totp_secret": "",
     "admin_temp_key_hash": "",
     "admin_temp_key_expires": "",
     "setup_completed": "0",
     "setup_step": "1",
-    "admin_password": generate_password_hash("admin123", method="pbkdf2:sha256:600000"),
 }
 
 # 版权说明选项（参考 B 站等平台的版权声明）
@@ -154,6 +164,18 @@ THEME_OPTIONS = {
     "stack": {
         "name": "Stack 杂志风",
         "desc": "大图卡片、深色 Hero 和杂志式首页。",
+    },
+    "fluid": {
+        "name": "Fluid 清新风",
+        "desc": "蓝青渐变、轻盈卡片和清爽留白。",
+    },
+    "next": {
+        "name": "NexT 经典风",
+        "desc": "黑白排版、经典博客气质，阅读优先。",
+    },
+    "blowfish": {
+        "name": "Blowfish 暗夜风",
+        "desc": "深色背景、霓虹渐变和彩色卡片，适合夜间浏览。",
     },
 }
 
@@ -307,6 +329,15 @@ def init_db():
     # 初始化设置
     for k, v in DEFAULT_SETTINGS.items():
         db.execute("INSERT OR IGNORE INTO settings(key, value) VALUES(?, ?)", (k, v))
+    # 历史默认私密密码 123456 强制失效
+    row = db.execute("SELECT value FROM settings WHERE key='private_password_hash'").fetchone()
+    if row and row[0]:
+        try:
+            if check_password_hash(row[0], "123456"):
+                db.execute("UPDATE settings SET value='' WHERE key='private_password_hash'")
+                db.execute("INSERT OR REPLACE INTO settings(key, value) VALUES('private_password_reset_required', '1')")
+        except Exception:
+            pass
     # 首次写入示例内容
     cur = db.execute("SELECT COUNT(*) FROM posts").fetchone()
     if cur[0] == 0:
@@ -316,9 +347,22 @@ def init_db():
         seed_tracks(db)
     seed_categories(db)
     seed_analytics(db)
+    user_count = db.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+    setup_row = db.execute("SELECT value FROM settings WHERE key='setup_completed'").fetchone()
+    if user_count == 0 and setup_row and setup_row[0] == "1":
+        # 数据库异常或恢复不完整时，重新进入首次设置，避免永久锁死
+        db.execute("UPDATE settings SET value='0' WHERE key='setup_completed'")
+        db.execute("UPDATE settings SET value='1' WHERE key='setup_step'")
     seed_users(db)
     seed_friends(db)
     db.commit()
+    row = db.execute("SELECT value FROM settings WHERE key='setup_completed'").fetchone()
+    if row and row[0] == "1":
+        try:
+            if os.path.exists(SETUP_TOKEN_FILE):
+                os.remove(SETUP_TOKEN_FILE)
+        except OSError:
+            pass
     db.close()
 
 
@@ -521,8 +565,8 @@ def seed_analytics(db):
 
 def seed_users(db):
     if db.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 0:
-        row = db.execute("SELECT value FROM settings WHERE key='admin_password'").fetchone()
-        pwd = row[0] if row and row[0] else generate_password_hash("admin123", method="pbkdf2:sha256:600000")
+        # 不再生成可预测的默认密码；首次设置向导会重新设置管理员密码
+        pwd = generate_password_hash(secrets.token_urlsafe(32), method="pbkdf2:sha256:600000")
         db.execute(
             "INSERT INTO users(username, password_hash, display_name, created_at) VALUES(?,?,?,?)",
             ("admin", pwd, "管理员", datetime.now().isoformat(timespec="seconds")),
@@ -629,14 +673,24 @@ def verify_password(password, stored):
 # 登录失败限流（进程内）
 _RATE_LOCK = threading.Lock()
 _RATE_ATTEMPTS = {}
+_RATE_CALLS = 0
 RATE_MAX = 8
 RATE_WINDOW = 15 * 60
 RATE_LOCK_SECONDS = 15 * 60
+RATE_MAX_KEYS = 20000
+
+
+def _prune_rate_attempts(now):
+    for key, rec in list(_RATE_ATTEMPTS.items()):
+        _, first, locked_until = rec
+        if now - first > RATE_WINDOW and (not locked_until or now > locked_until):
+            _RATE_ATTEMPTS.pop(key, None)
+    if len(_RATE_ATTEMPTS) > RATE_MAX_KEYS:
+        _RATE_ATTEMPTS.clear()
 
 
 def rate_limit_key(scope):
-    ip = request.headers.get("X-Real-IP") or request.remote_addr or "unknown"
-    return "%s:%s" % (scope, ip)
+    return "%s:%s" % (scope, client_ip())
 
 
 def rate_locked_seconds(key):
@@ -654,8 +708,12 @@ def rate_locked_seconds(key):
 
 
 def rate_fail(key):
+    global _RATE_CALLS
     now = time.time()
     with _RATE_LOCK:
+        _RATE_CALLS += 1
+        if _RATE_CALLS % 100 == 0:
+            _prune_rate_attempts(now)
         rec = _RATE_ATTEMPTS.get(key)
         if not rec or now - rec[1] > RATE_WINDOW:
             rec = (1, now, 0)
@@ -680,6 +738,112 @@ def safe_next(path):
     if path and path.startswith("/") and not path.startswith("//"):
         return path
     return url_for("admin_dashboard")
+
+
+def client_ip():
+    """ProxyFix 已把可信代理的真实 IP 写入 remote_addr。"""
+    return request.remote_addr or "unknown"
+
+
+def load_setup_token():
+    env = os.environ.get("SETUP_TOKEN")
+    if env:
+        return env.strip()
+    try:
+        with open(SETUP_TOKEN_FILE, "r", encoding="utf-8") as f:
+            token = f.read().strip()
+        if token:
+            return token
+    except OSError:
+        pass
+    token = secrets.token_urlsafe(24)
+    try:
+        with open(SETUP_TOKEN_FILE, "w", encoding="utf-8") as f:
+            f.write(token)
+        os.chmod(SETUP_TOKEN_FILE, 0o600)
+    except OSError:
+        pass
+    app.logger.warning("首次设置令牌：%s（文件：%s）", token, SETUP_TOKEN_FILE)
+    return token
+
+
+def remove_setup_token():
+    try:
+        if os.path.exists(SETUP_TOKEN_FILE):
+            os.remove(SETUP_TOKEN_FILE)
+    except OSError:
+        pass
+
+
+def csrf_token():
+    token = session.get("_csrf_token")
+    if not token:
+        token = secrets.token_urlsafe(24)
+        session["_csrf_token"] = token
+    return token
+
+
+def csrf_valid():
+    token = request.form.get("csrf_token") or request.headers.get("X-CSRF-Token") or ""
+    expected = session.get("_csrf_token") or ""
+    return bool(token and expected and hmac.compare_digest(token, expected))
+
+
+def audit_log(action, detail=""):
+    try:
+        entry = {
+            "time": datetime.now().isoformat(timespec="seconds"),
+            "ip": client_ip(),
+            "actor": session.get("admin_user") or "",
+            "action": action,
+            "detail": str(detail)[:500],
+            "ua": request.headers.get("User-Agent", "")[:300],
+        }
+        path = os.path.join(LOG_DIR, "audit.log")
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        try:
+            os.chmod(path, 0o600)
+        except OSError:
+            pass
+    except Exception:
+        pass
+
+
+def start_admin_session(username):
+    session.clear()
+    session.permanent = True
+    session["admin"] = True
+    session["admin_user"] = username
+    session["admin_gate_passed"] = True
+    now = time.time()
+    session["login_at"] = now
+    session["last_seen"] = now
+
+
+# API 限流（进程内，按 IP 分钟级）
+_API_RATE_LOCK = threading.Lock()
+_API_RATE = {}
+API_RATE_MAX = 120
+API_RATE_WINDOW = 60
+
+
+def api_rate_ok(scope, limit=API_RATE_MAX):
+    key = "%s:%s" % (scope, client_ip())
+    now = time.time()
+    with _API_RATE_LOCK:
+        if len(_API_RATE) > RATE_MAX_KEYS:
+            for k, (_, first) in list(_API_RATE.items()):
+                if now - first > API_RATE_WINDOW:
+                    _API_RATE.pop(k, None)
+            if len(_API_RATE) > RATE_MAX_KEYS:
+                _API_RATE.clear()
+        count, first = _API_RATE.get(key, (0, now))
+        if now - first > API_RATE_WINDOW:
+            count, first = 0, now
+        count += 1
+        _API_RATE[key] = (count, first)
+        return count <= limit
 
 
 @app.template_filter("md")
@@ -892,6 +1056,8 @@ def inject_globals():
         "popup_config": popup_config,
         "copyright_types": COPYRIGHT_TYPES,
         "current_year": datetime.now().year,
+        "csrf_token": csrf_token,
+        "themes": THEME_OPTIONS,
     }
 
 
@@ -1046,6 +1212,8 @@ ALLOWED_EVENTS = {
 @app.route("/api/track", methods=["POST"])
 def api_track():
     """前端埋点上报接口。"""
+    if not api_rate_ok("api_track", limit=180):
+        return ("", 429)
     data = request.get_json(silent=True) or request.form or {}
     event = (data.get("event") or "").strip()
     if event not in ALLOWED_EVENTS:
@@ -1066,7 +1234,7 @@ def api_track():
     path = (data.get("path") or "")[:500]
     label = (data.get("label") or "")[:200]
     referer = (data.get("referer") or "")[:500]
-    ip = (request.headers.get("X-Forwarded-For") or request.remote_addr or "").split(",")[0].strip()
+    ip = client_ip()
 
     db = get_db()
     try:
@@ -1090,6 +1258,8 @@ def api_track():
 
 @app.route("/api/like/<int:post_id>", methods=["POST"])
 def api_like(post_id):
+    if not api_rate_ok("api_like", limit=60):
+        return jsonify({"ok": False, "error": "请求过于频繁，请稍后再试"}), 429
     if get_settings().get("likes_enabled") != "1":
         return jsonify({"ok": False, "error": "点赞功能已关闭"}), 403
     db = get_db()
@@ -1144,20 +1314,64 @@ def admin_upload():
     path = os.path.join(UPLOAD_DIR, name)
     f.save(path)
     url = f"/static/uploads/{name}"
+    audit_log("upload", f.filename)
     return jsonify({"ok": True, "url": url, "name": f.filename})
 
 
 # --------------------------------------------------------------------------
 # 后台：隐秘入口 + 二级密码
 # --------------------------------------------------------------------------
+ADMIN_IDLE_SECONDS = 60 * 60
+ADMIN_ABSOLUTE_SECONDS = 12 * 60 * 60
+
+
 @app.before_request
 def first_run_setup():
-    if get_settings().get("setup_completed") == "1":
+    settings = get_settings()
+    if settings.get("setup_completed") == "1":
         return
     path = request.path
-    if path.startswith("/setup") or path.startswith("/static/"):
+    if path.startswith("/static/") or path == "/setup/unlock":
         return
+    if path == "/setup" or path.startswith("/setup/"):
+        if session.get("setup_authorized"):
+            return
+        if request.method == "GET" and path == "/setup":
+            return render_template("setup_unlock.html", settings=settings)
+        return redirect(url_for("setup_unlock"))
     return redirect(url_for("setup_wizard"))
+
+
+@app.before_request
+def enforce_admin_session():
+    if not session.get("admin"):
+        return
+    now = time.time()
+    try:
+        login_at = float(session.get("login_at") or 0)
+        last_seen = float(session.get("last_seen") or 0)
+    except (TypeError, ValueError):
+        login_at = last_seen = 0
+    if not login_at or not last_seen:
+        session["login_at"] = now
+        session["last_seen"] = now
+        return
+    if now - login_at > ADMIN_ABSOLUTE_SECONDS or now - last_seen > ADMIN_IDLE_SECONDS:
+        audit_log("session_expired")
+        session.clear()
+        flash("登录已过期，请重新登录。", "error")
+        return redirect(url_for("admin_login"))
+    session["last_seen"] = now
+
+
+@app.before_request
+def csrf_protect():
+    if request.method not in ("POST", "PUT", "PATCH", "DELETE"):
+        return
+    if request.path in ("/api/track", "/setup/unlock"):
+        return
+    if not csrf_valid():
+        abort(400, description="CSRF token missing or invalid")
 
 
 @app.before_request
@@ -1166,9 +1380,52 @@ def hide_admin_without_gate():
         abort(404)
 
 
+@app.after_request
+def security_headers(resp):
+    resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+    resp.headers.setdefault("X-Frame-Options", "DENY")
+    resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    resp.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+    resp.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
+    resp.headers.setdefault(
+        "Content-Security-Policy",
+        "default-src 'self'; "
+        "img-src 'self' data: blob: http: https:; "
+        "media-src 'self' http: https:; "
+        "frame-src http: https:; "
+        "connect-src 'self'; "
+        "script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "font-src 'self' data:; "
+        "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+    )
+    if request.is_secure:
+        resp.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+    if request.path.startswith("/admin"):
+        resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
 # --------------------------------------------------------------------------
 # 首次部署引导
 # --------------------------------------------------------------------------
+@app.route("/setup/unlock", methods=["GET", "POST"])
+def setup_unlock():
+    settings = get_settings()
+    if settings.get("setup_completed") == "1":
+        return redirect(url_for("index"))
+    if request.method == "POST":
+        token = request.form.get("setup_token", "").strip()
+        expected = load_setup_token()
+        if expected and hmac.compare_digest(token, expected):
+            session["setup_authorized"] = True
+            audit_log("setup_unlock_success")
+            return redirect(url_for("setup_wizard"))
+        audit_log("setup_unlock_fail")
+        flash("初始化令牌错误，请检查安装完成时输出的令牌。", "error")
+    return render_template("setup_unlock.html", settings=settings)
+
+
 @app.route("/setup")
 def setup_wizard():
     settings = get_settings()
@@ -1304,7 +1561,10 @@ def setup_step3():
     set_setting("setup_step", "4")
     set_setting("setup_completed", "1")
     session.pop("setup_totp_secret", None)
+    session.pop("setup_authorized", None)
+    remove_setup_token()
     get_db().commit()
+    audit_log("setup_completed", "totp")
     current = get_settings()
     return render_template("setup.html", step=4, temp_key=temp_key,
                            secret_path=current.get("admin_secret_path", ""))
@@ -1322,7 +1582,10 @@ def setup_skip2fa():
     set_setting("setup_step", "4")
     set_setting("setup_completed", "1")
     session.pop("setup_totp_secret", None)
+    session.pop("setup_authorized", None)
+    remove_setup_token()
     get_db().commit()
+    audit_log("setup_completed", "skip")
     current = get_settings()
     return render_template("setup.html", step=4, temp_key=None,
                            secret_path=current.get("admin_secret_path", ""))
@@ -1350,8 +1613,10 @@ def admin_secret_gate(secret):
             session.pop("admin_user", None)
             session.pop("admin_pending", None)
             session["admin_gate_passed"] = True
+            audit_log("gate_success")
             return redirect(url_for("admin_login"))
         rate_fail(key)
+        audit_log("gate_fail")
         flash("二级密码错误，请重试。", "error")
     return render_template("admin_gate.html")
 
@@ -1380,28 +1645,24 @@ def admin_login():
                     (hash_password(pwd), user["id"]),
                 )
                 db.commit()
-        elif username == "admin":
-            stored = get_settings().get("admin_password")
-            valid = verify_password(pwd, stored)
-            if valid and is_legacy_hash(stored):
-                set_setting("admin_password", hash_password(pwd))
         if valid:
             rate_clear(key)
             nxt = safe_next(request.args.get("next"))
             if get_settings().get("admin_totp_enabled") == "1":
-                session.pop("admin", None)
-                session.pop("admin_user", None)
+                session.clear()
+                session["admin_gate_passed"] = True
                 session["admin_pending"] = {
                     "username": username,
                     "next": nxt,
                     "time": time.time(),
                 }
+                audit_log("password_ok_2fa_pending", username)
                 return redirect(url_for("admin_totp"))
-            session["admin"] = True
-            session["admin_user"] = username
-            session.pop("admin_pending", None)
+            start_admin_session(username)
+            audit_log("login_success", username)
             return redirect(nxt)
         rate_fail(key)
+        audit_log("login_fail", username)
         flash("用户名或密码错误，请重试。", "error")
     return render_template("admin_login.html")
 
@@ -1422,10 +1683,10 @@ def admin_totp():
 
     settings = get_settings()
     if settings.get("admin_totp_enabled") != "1":
-        session["admin"] = True
-        session["admin_user"] = pending.get("username", "admin")
+        username = pending.get("username", "admin")
         nxt = pending.get("next") or url_for("admin_dashboard")
-        session.pop("admin_pending", None)
+        start_admin_session(username)
+        audit_log("login_success", username)
         return redirect(nxt)
 
     key = rate_limit_key("admin_2fa")
@@ -1459,12 +1720,13 @@ def admin_totp():
                 set_setting("admin_temp_key_expires", "")
         if valid:
             rate_clear(key)
-            session["admin"] = True
-            session["admin_user"] = pending.get("username", "admin")
+            username = pending.get("username", "admin")
             nxt = pending.get("next") or url_for("admin_dashboard")
-            session.pop("admin_pending", None)
+            start_admin_session(username)
+            audit_log("login_success_2fa", username)
             return redirect(nxt)
         rate_fail(key)
+        audit_log("2fa_fail", pending.get("username", ""))
         flash("验证码或临时密钥错误，请重试。", "error")
 
     return render_template("admin_2fa.html", pending=pending)
@@ -1495,6 +1757,7 @@ def admin_totp_setup():
             set_setting("admin_totp_secret", secret)
             set_setting("admin_totp_enabled", "1")
             session.pop("totp_setup_secret", None)
+            audit_log("2fa_enabled")
             flash("Authenticator 已启用。", "ok")
             return redirect(url_for("admin_settings"))
         flash("验证码错误，请重试。", "error")
@@ -1520,6 +1783,7 @@ def admin_2fa_temp_key():
     key = secrets.token_urlsafe(12)
     set_setting("admin_temp_key_hash", hash_password(key))
     set_setting("admin_temp_key_expires", "")
+    audit_log("temp_key_generated")
     return render_template("admin_temp_key.html", key=key)
 
 
@@ -1539,18 +1803,15 @@ def admin_2fa_disable():
     set_setting("admin_temp_key_hash", "")
     set_setting("admin_temp_key_expires", "")
     session.pop("totp_setup_secret", None)
+    audit_log("2fa_disabled")
     flash("两步验证已关闭。", "ok")
     return redirect(url_for("admin_settings"))
 
 
 @app.route("/admin/logout")
 def admin_logout():
-    session.pop("admin", None)
-    session.pop("admin_user", None)
-    session.pop("unlocked_posts", None)
-    session.pop("admin_gate_passed", None)
-    session.pop("admin_pending", None)
-    session.pop("totp_setup_secret", None)
+    audit_log("logout", session.get("admin_user", ""))
+    session.clear()
     return redirect(url_for("index"))
 
 
@@ -2188,6 +2449,7 @@ def admin_private():
         current = get_settings()
         if pwd:
             set_setting("private_password_hash", hash_password(pwd))
+            set_setting("private_password_reset_required", "0")
         elif enabled and not current.get("private_password_hash"):
             flash("请先设置私密入口密码。", "error")
             enabled = False
@@ -2239,6 +2501,7 @@ def admin_settings():
         if new_gate:
             set_setting("admin_gate_password_hash", hash_password(new_gate))
 
+        audit_log("settings_saved", "theme=%s" % theme)
         flash("设置已保存。", "ok")
         return redirect(url_for("admin_settings"))
 

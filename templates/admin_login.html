@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>后台登录 · {{ settings.site_title }}</title>
   {% if settings.site_logo %}<link rel="icon" href="{{ settings.site_logo }}">{% endif %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
@@ -26,6 +27,7 @@
       {% endfor %}
     {% endwith %}
     <form method="post" class="login-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <label>
         <span>用户名</span>
         <input type="text" name="username" value="admin" placeholder="请输入用户名" autofocus required>

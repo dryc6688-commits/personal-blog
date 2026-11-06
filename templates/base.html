@@ -3,12 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>{% block title %}{{ settings.site_title }}{% endblock %}</title>
   <meta name="description" content="{{ settings.site_description }}">
   {% if settings.site_logo %}<link rel="icon" href="{{ settings.site_logo }}">{% endif %}
   <link rel="stylesheet" href="{{ url_for('static', filename='vendor/highlight/github-dark.min.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-  {% set theme = settings.site_theme if settings.site_theme in ['butterfly', 'paper', 'stack'] else 'butterfly' %}
+  {% set theme = settings.site_theme if settings.site_theme in themes else 'butterfly' %}
   <link rel="stylesheet" href="{{ url_for('static', filename='themes/' ~ theme ~ '/theme.css') }}">
   {% block head %}{% endblock %}
 </head>

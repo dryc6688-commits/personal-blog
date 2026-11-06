@@ -12,6 +12,7 @@
 <div class="card">
   <div class="card-title">点赞设置</div>
   <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <label class="switch">
       <input type="checkbox" name="likes_enabled" {{ 'checked' if settings.likes_enabled == '1' }}>
       <span>启用文章点赞功能</span>

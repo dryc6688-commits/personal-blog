@@ -4,6 +4,11 @@
 (function () {
   "use strict";
 
+  function csrfToken() {
+    var m = document.querySelector('meta[name="csrf-token"]');
+    return m ? m.content : "";
+  }
+
   // 删除确认
   document.querySelectorAll("form[data-confirm]").forEach(function (form) {
     form.addEventListener("submit", function (e) {
@@ -41,7 +46,7 @@
         var jobs = files.map(function (file) {
           var fd = new FormData();
           fd.append("file", file);
-          return fetch("/admin/upload", { method: "POST", body: fd })
+          return fetch("/admin/upload", { method: "POST", headers: { "X-CSRF-Token": csrfToken() }, body: fd })
             .then(function (r) { return r.json(); });
         });
 
