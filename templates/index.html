@@ -60,6 +60,13 @@
     </a>
     {% endfor %}
   </div>
+  {% if pages > 1 %}
+  <nav class="pager" aria-label="分页">
+    {% if page > 1 %}<a class="pager-link" href="{{ url_for('index', page=page-1, category=active_category.id if active_category else None) }}">← 上一页</a>{% endif %}
+    <span class="pager-info">{{ page }} / {{ pages }}</span>
+    {% if page < pages %}<a class="pager-link" href="{{ url_for('index', page=page+1, category=active_category.id if active_category else None) }}">下一页 →</a>{% endif %}
+  </nav>
+  {% endif %}
   {% else %}
   <div class="empty-state">
     <p>该分类下还没有文章。</p>

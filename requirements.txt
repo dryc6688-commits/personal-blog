@@ -3,3 +3,4 @@ Markdown==3.9
 pyotp==2.10.0
 qrcode[pil]==8.2
 waitress==3.0.2
+nh3==0.3.7

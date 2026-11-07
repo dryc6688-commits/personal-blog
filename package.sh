@@ -19,7 +19,7 @@ trap cleanup EXIT
 mkdir -p "$DEST" "$DIST"
 
 echo "==> 收集程序文件"
-cp app.py wsgi.py requirements.txt README.md .gitignore .env.example "$DEST"/
+cp app.py wsgi.py requirements.txt README.md CHANGELOG.md .gitignore .env.example "$DEST"/
 cp install.sh start.sh stop.sh status.sh uninstall.sh run.sh bootstrap.sh backup.sh "$DEST"/
 cp -R templates static "$DEST"/
 

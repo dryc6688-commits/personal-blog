@@ -13,6 +13,8 @@ blog.pid
 dist/
 
 blog.db
+blog.db-wal
+blog.db-shm
 static/uploads/*
 !static/uploads/seed/
 

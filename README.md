@@ -30,6 +30,7 @@
 - 打赏功能（支持V/Q）
 - 全设备自适应尺寸展示
 - 内置 6 套主题：Butterfly / PaperMod / Stack / Fluid / NexT / Blowfish
+- 首页分页（每页 12 篇）、草稿预览、上传图片自动去除 EXIF
 ---
 
 ## 快速开始（Linux 服务器）
@@ -181,26 +182,25 @@ curl -fsSL https://raw.githubusercontent.com/dryc6688-commits/personal-blog/main
 
 > 大版本更新前建议先备份 `blog.db`、`secret_key` 和 `static/uploads/`。
 
+升级后行为变化与注意事项见 [CHANGELOG.md](CHANGELOG.md)，主要有：
+
+- 新增依赖 `nh3`，重新执行安装命令会自动安装。
+- 数据库启用 WAL 模式，运行时会多出 `blog.db-wal`、`blog.db-shm`，请用 `./backup.sh` 备份。
+- 文章 HTML 渲染前会被清洗；浏览量对同一访客 30 分钟内的重复打开只计一次。
+
 ---
 
 ## 数据与备份
 
 | 内容 | 位置 |
 |---|---|
-| 数据库 | `blog.db` |
+| 数据库 | `blog.db`（运行时另有 `blog.db-wal`、`blog.db-shm`） |
 | 上传文件 | `static/uploads/` |
 | 会话密钥 | `secret_key` |
 | 运行配置（可选） | `.env` |
 | 日志 | `logs/blog.log` |
 
-手动备份：
-
-```bash
-cd ~/personal-blog
-tar -czf ~/blog-backup-$(date +%F).tar.gz blog.db secret_key static/uploads
-```
-
-也可以使用内置备份脚本：
+推荐使用内置备份脚本（通过 SQLite 在线备份接口生成一致的快照；数据库启用了 WAL 模式，直接 `tar` 或 `cp` 运行中的 `blog.db` 可能得到不完整的备份）：
 
 ```bash
 ./backup.sh
@@ -269,7 +269,11 @@ sudo systemctl restart personal-blog
 - 一次性临时登录密钥不设有效期，只能使用一次，使用后立即失效。
 - 管理员会话 **60 分钟无操作自动过期**，最长 **12 小时**。
 - 已移除默认管理员密码兜底；历史默认私密密码 `123456` 会强制失效。
-- 禁用 SVG 上传，降低存储型 XSS 风险。
+- 禁用 SVG 上传；上传时校验文件头与扩展名一致，JPEG/WebP 自动去除 EXIF（含 GPS 位置）。
+- 文章 HTML 渲染前经 `nh3` 清洗：移除脚本、事件属性和 `javascript:` 链接，仅保留编辑器产生的排版与视频嵌入。
+- 未发布的草稿仅管理员可预览。
+- 修改密码、关闭两步验证、删除用户后，其他设备上的管理员登录立即失效。
+- TOTP 验证码单次有效，防止被重放。
 - 安全响应头：`CSP`、`X-Frame-Options`、`X-Content-Type-Options`、`Referrer-Policy`、`Permissions-Policy`；HTTPS 下自动启用 HSTS。
 - 关键操作写入 `logs/audit.log`，便于排查异常登录和设置变更。
 - Cookie 默认 `HttpOnly` + `SameSite=Strict`；HTTPS 环境请开启 `SESSION_COOKIE_SECURE=1`。
@@ -301,6 +305,12 @@ DEBUG=1 python3 app.py
 ```
 
 默认访问 `http://127.0.0.1:8000`。macOS 的 AirPlay 占用 5000 端口，所以项目默认使用 8000。
+
+运行测试（无需额外依赖）：
+
+```bash
+python3 -m unittest discover -s tests -v
+```
 
 ---
 

@@ -54,7 +54,7 @@
   {% endif %}
 
   <div class="prose">
-    {% if post.content_format == 'html' %}{{ post.content|safe }}{% else %}{{ post.content|md|safe }}{% endif %}
+    {% if post.content_format == 'html' %}{{ post.content|clean_html }}{% else %}{{ post.content|md|clean_html }}{% endif %}
   </div>
 
   {% set cp = copyright_types.get(post.copyright_type, copyright_types['original']) %}

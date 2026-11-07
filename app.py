@@ -14,6 +14,7 @@ import base64
 import hashlib
 import hmac
 import io
+import ipaddress
 import json
 import os
 import random
@@ -25,14 +26,21 @@ import time
 import uuid
 from datetime import datetime, date, timedelta
 
+import nh3
 import pyotp
 import qrcode
 from flask import (Flask, abort, flash, g, jsonify, redirect, render_template,
                    request, session, url_for)
 from markdown import Markdown
+from markupsafe import Markup
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
+
+try:  # Pillow 随 qrcode[pil] 一同安装；缺失时仅跳过图片元数据清理
+    from PIL import Image, ImageOps
+except ImportError:  # pragma: no cover
+    Image = ImageOps = None
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "blog.db")
@@ -92,7 +100,7 @@ if os.environ.get("TRUST_PROXY", "0") == "1":
         app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=0, x_prefix=0
     )
 
-md = Markdown(extensions=["fenced_code", "tables", "nl2br", "sane_lists", "toc"])
+MD_EXTENSIONS = ["fenced_code", "tables", "nl2br", "sane_lists", "toc"]
 
 DEFAULT_SETTINGS = {
     "site_title": "我的个人博客",
@@ -101,8 +109,8 @@ DEFAULT_SETTINGS = {
     "site_logo": "",
     "site_theme": "butterfly",
     "footer_text": "用代码记录生活",
-    "icp": "粤ICP备00000000号-1",
-    "police": "粤公网安备 00000000000000号",
+    "icp": "",
+    "police": "",
     "police_url": "https://beian.mps.gov.cn/",
     "copyright": "© 2026 我的个人博客",
     "music_enabled": "1",
@@ -136,6 +144,8 @@ DEFAULT_SETTINGS = {
     "admin_totp_secret": "",
     "admin_temp_key_hash": "",
     "admin_temp_key_expires": "",
+    "admin_totp_last_counter": "0",
+    "session_epoch": "1",
     "setup_completed": "0",
     "setup_step": "1",
 }
@@ -185,9 +195,10 @@ THEME_OPTIONS = {
 # --------------------------------------------------------------------------
 def get_db():
     if "db" not in g:
-        g.db = sqlite3.connect(DB_PATH)
+        g.db = sqlite3.connect(DB_PATH, timeout=10)
         g.db.row_factory = sqlite3.Row
         g.db.execute("PRAGMA foreign_keys = ON")
+        g.db.execute("PRAGMA synchronous = NORMAL")
     return g.db
 
 
@@ -267,6 +278,8 @@ CREATE TABLE IF NOT EXISTS analytics (
 CREATE INDEX IF NOT EXISTS idx_analytics_day ON analytics(day);
 CREATE INDEX IF NOT EXISTS idx_analytics_event ON analytics(event);
 CREATE INDEX IF NOT EXISTS idx_analytics_visitor ON analytics(visitor_id);
+CREATE INDEX IF NOT EXISTS idx_analytics_event_post ON analytics(event, post_id);
+CREATE INDEX IF NOT EXISTS idx_posts_list ON posts(published, is_private, created_at);
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL UNIQUE,
@@ -323,12 +336,17 @@ def ensure_columns(db):
 
 
 def init_db():
-    db = sqlite3.connect(DB_PATH)
+    db = sqlite3.connect(DB_PATH, timeout=10)
+    db.execute("PRAGMA journal_mode = WAL")  # 每次访问都有写入（埋点/点赞），WAL 避免读写互相阻塞
     db.executescript(SCHEMA)
     ensure_columns(db)
     # 初始化设置
     for k, v in DEFAULT_SETTINGS.items():
         db.execute("INSERT OR IGNORE INTO settings(key, value) VALUES(?, ?)", (k, v))
+    # 旧版本预置的占位备案号不应继续展示在页脚
+    db.execute("UPDATE settings SET value='' WHERE key='icp' AND value='粤ICP备00000000号-1'")
+    db.execute("UPDATE settings SET value='' WHERE key='police' AND value='粤公网安备 00000000000000号'")
+
     # 历史默认私密密码 123456 强制失效
     row = db.execute("SELECT value FROM settings WHERE key='private_password_hash'").fetchone()
     if row and row[0]:
@@ -522,7 +540,7 @@ def seed_analytics(db):
     if seeded:
         return
     if db.execute("SELECT COUNT(*) FROM analytics").fetchone()[0] == 0:
-        random.seed(2026)
+        rng = random.Random(2026)
         post_ids = [r[0] for r in db.execute("SELECT id FROM posts").fetchall()]
         browsers = ["Chrome", "Safari", "Edge", "Firefox"]
         oses = ["macOS", "iOS", "Windows", "Android", "Linux"]
@@ -531,29 +549,29 @@ def seed_analytics(db):
         for offset in range(13, -1, -1):
             d = today - timedelta(days=offset)
             day = d.isoformat()
-            visitors = [uuid.uuid4().hex for _ in range(random.randint(8, 20))]
-            for _ in range(random.randint(30, 70)):
-                vid = random.choice(visitors)
-                device = random.choices(["pc", "mobile", "tablet"], weights=[60, 35, 5])[0]
-                browser = random.choices(browsers, weights=[55, 30, 10, 5])[0]
-                osname = random.choices(oses, weights=[40, 25, 20, 10, 5])[0]
-                pid = random.choice(post_ids) if post_ids and random.random() < 0.65 else None
+            visitors = [uuid.uuid4().hex for _ in range(rng.randint(8, 20))]
+            for _ in range(rng.randint(30, 70)):
+                vid = rng.choice(visitors)
+                device = rng.choices(["pc", "mobile", "tablet"], weights=[60, 35, 5])[0]
+                browser = rng.choices(browsers, weights=[55, 30, 10, 5])[0]
+                osname = rng.choices(oses, weights=[40, 25, 20, 10, 5])[0]
+                pid = rng.choice(post_ids) if post_ids and rng.random() < 0.65 else None
                 path = ("/post/%d" % pid) if pid else "/"
-                created = "%sT%02d:%02d:%02d" % (day, random.randint(8, 23), random.randint(0, 59), random.randint(0, 59))
+                created = "%sT%02d:%02d:%02d" % (day, rng.randint(8, 23), rng.randint(0, 59), rng.randint(0, 59))
                 db.execute(
                     """INSERT INTO analytics(event, path, post_id, category_id, label, visitor_id,
                        ip, ua, device, browser, os, referer, demo, day, created_at)
                        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                     ("pageview", path, pid, None, "", vid, "", "", device, browser, osname, "", 1, day, created),
                 )
-            for _ in range(random.randint(6, 16)):
-                ev = random.choice(events)
-                vid = random.choice(visitors)
-                device = random.choices(["pc", "mobile", "tablet"], weights=[60, 35, 5])[0]
-                browser = random.choices(browsers, weights=[55, 30, 10, 5])[0]
-                osname = random.choices(oses, weights=[40, 25, 20, 10, 5])[0]
-                pid = random.choice(post_ids) if post_ids else None
-                created = "%sT%02d:%02d:%02d" % (day, random.randint(8, 23), random.randint(0, 59), random.randint(0, 59))
+            for _ in range(rng.randint(6, 16)):
+                ev = rng.choice(events)
+                vid = rng.choice(visitors)
+                device = rng.choices(["pc", "mobile", "tablet"], weights=[60, 35, 5])[0]
+                browser = rng.choices(browsers, weights=[55, 30, 10, 5])[0]
+                osname = rng.choices(oses, weights=[40, 25, 20, 10, 5])[0]
+                pid = rng.choice(post_ids) if post_ids else None
+                created = "%sT%02d:%02d:%02d" % (day, rng.randint(8, 23), rng.randint(0, 59), rng.randint(0, 59))
                 db.execute(
                     """INSERT INTO analytics(event, path, post_id, category_id, label, visitor_id,
                        ip, ua, device, browser, os, referer, demo, day, created_at)
@@ -630,11 +648,14 @@ def detect_os(ua):
 # 工具
 # --------------------------------------------------------------------------
 def get_settings():
-    db = get_db()
-    rows = db.execute("SELECT key, value FROM settings").fetchall()
-    data = dict(DEFAULT_SETTINGS)
-    data.update({r["key"]: r["value"] for r in rows})
-    return data
+    cached = g.get("_settings")
+    if cached is None:
+        db = get_db()
+        rows = db.execute("SELECT key, value FROM settings").fetchall()
+        cached = dict(DEFAULT_SETTINGS)
+        cached.update({r["key"]: r["value"] for r in rows})
+        g._settings = cached
+    return dict(cached)
 
 
 def set_setting(key, value):
@@ -645,6 +666,7 @@ def set_setting(key, value):
         (key, value),
     )
     db.commit()
+    g.pop("_settings", None)
 
 
 def sha256(text):
@@ -686,11 +708,25 @@ def _prune_rate_attempts(now):
         if now - first > RATE_WINDOW and (not locked_until or now > locked_until):
             _RATE_ATTEMPTS.pop(key, None)
     if len(_RATE_ATTEMPTS) > RATE_MAX_KEYS:
+        newest = sorted(_RATE_ATTEMPTS.items(),
+                        key=lambda kv: (kv[1][2] or 0, kv[1][1]), reverse=True)
         _RATE_ATTEMPTS.clear()
+        _RATE_ATTEMPTS.update(newest[: RATE_MAX_KEYS // 2])
+
+
+def rate_ip():
+    """限流用的客户端标识：IPv6 按 /64 聚合，避免攻击者靠换地址绕过。"""
+    ip = client_ip()
+    try:
+        if ipaddress.ip_address(ip).version == 6:
+            return str(ipaddress.ip_network("%s/64" % ip, strict=False))
+    except ValueError:
+        pass
+    return ip
 
 
 def rate_limit_key(scope):
-    return "%s:%s" % (scope, client_ip())
+    return "%s:%s" % (scope, rate_ip())
 
 
 def rate_locked_seconds(key):
@@ -819,6 +855,35 @@ def start_admin_session(username):
     now = time.time()
     session["login_at"] = now
     session["last_seen"] = now
+    session["epoch"] = get_settings().get("session_epoch", "1")
+
+
+def bump_session_epoch():
+    """让所有已签发的管理员会话立即失效（当前会话除外）。改密码、关闭 2FA、删用户时调用。"""
+    new = secrets.token_hex(8)
+    set_setting("session_epoch", new)
+    if session.get("admin"):
+        session["epoch"] = new
+
+
+def verify_totp_once(secret, code):
+    """校验 TOTP（±1 个时间窗），并拒绝同一验证码被重复使用。"""
+    code = (code or "").strip().replace(" ", "")
+    if not secret or not code.isdigit():
+        return False
+    totp = pyotp.TOTP(secret)
+    now_counter = int(time.time() // totp.interval)
+    for counter in (now_counter - 1, now_counter, now_counter + 1):
+        if hmac.compare_digest(totp.generate_otp(counter), code):
+            try:
+                last = int(get_settings().get("admin_totp_last_counter") or 0)
+            except ValueError:
+                last = 0
+            if counter <= last:
+                return False
+            set_setting("admin_totp_last_counter", str(counter))
+            return True
+    return False
 
 
 # API 限流（进程内，按 IP 分钟级）
@@ -829,7 +894,7 @@ API_RATE_WINDOW = 60
 
 
 def api_rate_ok(scope, limit=API_RATE_MAX):
-    key = "%s:%s" % (scope, client_ip())
+    key = "%s:%s" % (scope, rate_ip())
     now = time.time()
     with _API_RATE_LOCK:
         if len(_API_RATE) > RATE_MAX_KEYS:
@@ -837,7 +902,9 @@ def api_rate_ok(scope, limit=API_RATE_MAX):
                 if now - first > API_RATE_WINDOW:
                     _API_RATE.pop(k, None)
             if len(_API_RATE) > RATE_MAX_KEYS:
+                newest = sorted(_API_RATE.items(), key=lambda kv: kv[1][1], reverse=True)
                 _API_RATE.clear()
+                _API_RATE.update(newest[: RATE_MAX_KEYS // 2])
         count, first = _API_RATE.get(key, (0, now))
         if now - first > API_RATE_WINDOW:
             count, first = 0, now
@@ -850,7 +917,74 @@ def api_rate_ok(scope, limit=API_RATE_MAX):
 def render_markdown(text):
     if not text:
         return ""
-    return md.reset().convert(text)
+    # Markdown 实例带有解析状态，非线程安全：waitress 多线程下不能共用全局实例
+    return Markdown(extensions=MD_EXTENSIONS).convert(text)
+
+
+_SAFE_TAGS = {
+    "a", "abbr", "audio", "b", "blockquote", "br", "code", "del", "div", "em", "figcaption",
+    "figure", "font", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "iframe", "img", "ins",
+    "kbd", "li", "mark", "ol", "p", "pre", "s", "small", "source", "span", "strike", "strong",
+    "sub", "sup", "table", "tbody", "td", "tfoot", "th", "thead", "tr", "u", "ul", "video",
+}
+_SAFE_ATTRS = {
+    "*": {"class", "style", "title"},
+    "a": {"href", "target"},
+    "img": {"src", "alt", "width", "height", "loading"},
+    "video": {"src", "controls", "playsinline", "poster", "width", "height", "preload", "loop", "muted"},
+    "audio": {"src", "controls", "preload", "loop"},
+    "source": {"src", "type"},
+    "iframe": {"src", "width", "height", "allowfullscreen", "frameborder", "allow",
+               "loading", "referrerpolicy", "scrolling"},
+    "font": {"color", "size", "face"},
+    "td": {"colspan", "rowspan", "align"},
+    "th": {"colspan", "rowspan", "align"},
+    "ol": {"start"},
+    **{"h%d" % i: {"id"} for i in range(1, 7)},
+}
+_SAFE_STYLE_PROPS = {
+    "color", "background-color", "font-size", "font-weight", "font-style", "font-family",
+    "text-align", "text-decoration", "line-height", "text-indent",
+}
+_SAFE_STYLE_VALUE = re.compile(r"^[#\w\s.,%()\-\"'/]+$")
+
+
+def _clean_style(value):
+    """只保留富文本编辑器会产生的排版属性，丢弃 position/url()/expression 等。"""
+    kept = []
+    for decl in value.split(";"):
+        if ":" not in decl:
+            continue
+        prop, val = decl.split(":", 1)
+        prop, val = prop.strip().lower(), val.strip()
+        low = val.lower()
+        if (prop in _SAFE_STYLE_PROPS and _SAFE_STYLE_VALUE.match(val)
+                and not any(bad in low for bad in ("url(", "expression", "javascript", "@import"))):
+            kept.append("%s: %s" % (prop, val))
+    return "; ".join(kept) or None
+
+
+def _attribute_filter(tag, attr, value):
+    if attr == "style":
+        return _clean_style(value)
+    return value
+
+
+def clean_html(html):
+    """清洗文章 HTML：去除脚本、事件属性、javascript: 链接，保留编辑器产生的排版与视频嵌入。"""
+    if not html:
+        return Markup("")
+    return Markup(nh3.clean(
+        html,
+        tags=_SAFE_TAGS,
+        attributes=_SAFE_ATTRS,
+        attribute_filter=_attribute_filter,
+        url_schemes={"http", "https", "mailto"},
+        strip_comments=True,
+    ))
+
+
+app.add_template_filter(clean_html, "clean_html")
 
 
 @app.template_filter("nl2list")
@@ -887,6 +1021,15 @@ def get_category_counts(db=None):
            ORDER BY c.sort, c.id"""
     ).fetchall()
     return [dict(r) for r in rows]
+
+
+# 列表页不需要正文（content 可能很大），显式列出字段
+POST_LIST_COLS = (
+    "id, title, type, excerpt, cover, images, video_url, video_poster, password_hash, "
+    "copyright_type, copyright_text, content_format, is_private, published, created_at, "
+    "updated_at, base_views, show_views"
+)
+POSTS_PER_PAGE = 12
 
 
 def get_post_categories(post_id):
@@ -1076,18 +1219,34 @@ def index():
         else:
             category_id = None
 
+    page = max(request.args.get("page", 1, type=int) or 1, 1)
+    offset = (page - 1) * POSTS_PER_PAGE
+    cols = ", ".join("p." + c.strip() for c in POST_LIST_COLS.split(","))
+
     if category_id:
+        total = db.execute(
+            """SELECT COUNT(*) FROM posts p
+               JOIN post_categories pc ON pc.post_id = p.id
+               WHERE p.published = 1 AND p.is_private = 0 AND pc.category_id = ?""",
+            (category_id,),
+        ).fetchone()[0]
         posts = db.execute(
-            """SELECT p.* FROM posts p
+            f"""SELECT {cols} FROM posts p
                JOIN post_categories pc ON pc.post_id = p.id
                WHERE p.published = 1 AND p.is_private = 0 AND pc.category_id = ?
-               ORDER BY p.created_at DESC, p.id DESC""",
-            (category_id,),
+               ORDER BY p.created_at DESC, p.id DESC LIMIT ? OFFSET ?""",
+            (category_id, POSTS_PER_PAGE, offset),
         ).fetchall()
     else:
+        total = db.execute(
+            "SELECT COUNT(*) FROM posts WHERE published = 1 AND is_private = 0"
+        ).fetchone()[0]
         posts = db.execute(
-            "SELECT * FROM posts WHERE published = 1 AND is_private = 0 ORDER BY created_at DESC, id DESC"
+            f"""SELECT {POST_LIST_COLS} FROM posts WHERE published = 1 AND is_private = 0
+               ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?""",
+            (POSTS_PER_PAGE, offset),
         ).fetchall()
+    pages = max(1, -(-total // POSTS_PER_PAGE))
 
     items = []
     for p in posts:
@@ -1098,7 +1257,8 @@ def index():
     attach_views(db, items)
     categories = get_category_counts(db)
     return render_template("index.html", posts=items, categories=categories,
-                           active_category=active_category, friends=get_friend_links())
+                           active_category=active_category, friends=get_friend_links(),
+                           page=page, pages=pages)
 
 
 @app.route("/friends")
@@ -1136,7 +1296,7 @@ def private_home():
 
     db = get_db()
     posts = db.execute(
-        "SELECT * FROM posts WHERE is_private = 1 AND published = 1 ORDER BY created_at DESC, id DESC"
+        "SELECT " + POST_LIST_COLS + " FROM posts WHERE is_private = 1 AND published = 1 ORDER BY created_at DESC, id DESC"
     ).fetchall()
     items = []
     for p in posts:
@@ -1158,7 +1318,8 @@ def private_logout():
 def post_detail(post_id):
     db = get_db()
     p = db.execute("SELECT * FROM posts WHERE id = ?", (post_id,)).fetchone()
-    if not p:
+    # 未发布的草稿只有已登录的管理员可预览
+    if not p or (not p["published"] and not session.get("admin")):
         abort(404)
     d = dict(p)
     d["image_list"] = parse_images(p["images"])
@@ -1238,15 +1399,30 @@ def api_track():
 
     db = get_db()
     try:
-        db.execute(
-            """INSERT INTO analytics(event, path, post_id, category_id, label, visitor_id,
-               ip, ua, device, browser, os, referer, demo, day, created_at)
-               VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-            (event, path, post_id, category_id, label, vid, ip, ua,
-             detect_device(ua), detect_browser(ua), detect_os(ua), referer, 0,
-             now.strftime("%Y-%m-%d"), now.isoformat(timespec="seconds")),
-        )
-        db.commit()
+        # 只统计真实存在且已发布的文章，避免伪造 post_id 污染统计
+        if post_id is not None and not db.execute(
+            "SELECT 1 FROM posts WHERE id = ? AND published = 1", (post_id,)
+        ).fetchone():
+            post_id = None
+        duplicate = False
+        if event == "pageview" and post_id is not None:
+            # 同一访客 30 分钟内重复打开同一篇文章只计一次（刷新不刷量）
+            since = (now - timedelta(minutes=30)).isoformat(timespec="seconds")
+            duplicate = db.execute(
+                """SELECT 1 FROM analytics WHERE event = 'pageview' AND post_id = ?
+                   AND visitor_id = ? AND demo = 0 AND created_at >= ? LIMIT 1""",
+                (post_id, vid, since),
+            ).fetchone() is not None
+        if not duplicate:
+            db.execute(
+                """INSERT INTO analytics(event, path, post_id, category_id, label, visitor_id,
+                   ip, ua, device, browser, os, referer, demo, day, created_at)
+                   VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (event, path, post_id, category_id, label, vid, ip, ua,
+                 detect_device(ua), detect_browser(ua), detect_os(ua), referer, 0,
+                 now.strftime("%Y-%m-%d"), now.isoformat(timespec="seconds")),
+            )
+            db.commit()
     except Exception:
         pass
 
@@ -1263,7 +1439,7 @@ def api_like(post_id):
     if get_settings().get("likes_enabled") != "1":
         return jsonify({"ok": False, "error": "点赞功能已关闭"}), 403
     db = get_db()
-    if not db.execute("SELECT 1 FROM posts WHERE id = ?", (post_id,)).fetchone():
+    if not db.execute("SELECT 1 FROM posts WHERE id = ? AND published = 1", (post_id,)).fetchone():
         return jsonify({"ok": False, "error": "文章不存在"}), 404
 
     vid = request.cookies.get("vid") or uuid.uuid4().hex
@@ -1301,6 +1477,60 @@ def not_found(e):
 # --------------------------------------------------------------------------
 # 后台上传
 # --------------------------------------------------------------------------
+_MP4_BOXES = (b"ftyp", b"moov", b"mdat", b"free", b"wide", b"skip")
+
+
+def sniff_ok(ext, head):
+    """按文件头校验内容与扩展名一致，防止把任意文件改名后上传。"""
+    if ext in ("jpg", "jpeg"):
+        return head.startswith(b"\xff\xd8\xff")
+    if ext == "png":
+        return head.startswith(b"\x89PNG\r\n\x1a\n")
+    if ext == "gif":
+        return head[:6] in (b"GIF87a", b"GIF89a")
+    if ext == "webp":
+        return head[:4] == b"RIFF" and head[8:12] == b"WEBP"
+    if ext in ("mp4", "mov", "m4v", "m4a"):
+        return head[4:8] in _MP4_BOXES
+    if ext == "webm":
+        return head.startswith(b"\x1a\x45\xdf\xa3")
+    if ext == "ogg":
+        return head.startswith(b"OggS")
+    if ext == "wav":
+        return head[:4] == b"RIFF" and head[8:12] == b"WAVE"
+    if ext == "flac":
+        return head.startswith(b"fLaC")
+    if ext == "mp3":
+        return head.startswith(b"ID3") or (len(head) > 1 and head[0] == 0xFF and head[1] & 0xE0 == 0xE0)
+    if ext == "aac":
+        return (head.startswith(b"ID3") or head[4:8] == b"ftyp" or head.startswith(b"ADIF")
+                or (len(head) > 1 and head[0] == 0xFF and head[1] & 0xF0 == 0xF0))
+    return False
+
+
+def strip_image_metadata(path, ext):
+    """重新编码 JPEG/WebP：按 EXIF 方向转正，并去掉 GPS 等元数据（摄影类博客尤其重要）。"""
+    if Image is None or ext not in ("jpg", "jpeg", "webp"):
+        return
+    tmp = path + ".tmp"
+    with Image.open(path) as im:
+        if getattr(im, "is_animated", False):
+            return
+        im.load()
+        icc = im.info.get("icc_profile")
+        fixed = ImageOps.exif_transpose(im)
+        if ext == "webp":
+            fmt, kwargs = "WEBP", {"quality": 92}
+        else:
+            fmt, kwargs = "JPEG", {"quality": 92, "optimize": True}
+            if fixed.mode not in ("RGB", "L", "CMYK"):
+                fixed = fixed.convert("RGB")
+        if icc:
+            kwargs["icc_profile"] = icc
+        fixed.save(tmp, fmt, **kwargs)
+    os.replace(tmp, path)
+
+
 @app.route("/admin/upload", methods=["POST"])
 @login_required
 def admin_upload():
@@ -1310,9 +1540,22 @@ def admin_upload():
     ext = f.filename.rsplit(".", 1)[-1].lower() if "." in f.filename else ""
     if ext not in ALLOWED_EXT:
         return jsonify({"ok": False, "error": f"不支持的文件类型: .{ext}"}), 400
+    head = f.stream.read(32)
+    f.stream.seek(0)
+    if not sniff_ok(ext, head):
+        return jsonify({"ok": False, "error": "文件内容与扩展名不符"}), 400
     name = f"{uuid.uuid4().hex}.{ext}"
     path = os.path.join(UPLOAD_DIR, name)
     f.save(path)
+    try:
+        strip_image_metadata(path, ext)
+    except Exception:
+        for leftover in (path, path + ".tmp"):
+            try:
+                os.remove(leftover)
+            except OSError:
+                pass
+        return jsonify({"ok": False, "error": "图片无法解析，请换一张"}), 400
     url = f"/static/uploads/{name}"
     audit_log("upload", f.filename)
     return jsonify({"ok": True, "url": url, "name": f.filename})
@@ -1356,6 +1599,10 @@ def enforce_admin_session():
         session["login_at"] = now
         session["last_seen"] = now
         return
+    if session.get("epoch", "1") != get_settings().get("session_epoch", "1"):
+        audit_log("session_revoked")
+        session.clear()
+        return redirect(url_for("index"))
     if now - login_at > ADMIN_ABSOLUTE_SECONDS or now - last_seen > ADMIN_IDLE_SECONDS:
         audit_log("session_expired")
         session.clear()
@@ -1701,7 +1948,7 @@ def admin_totp():
         if code:
             secret = settings.get("admin_totp_secret") or ""
             try:
-                valid = bool(secret) and pyotp.TOTP(secret).verify(code, valid_window=1)
+                valid = verify_totp_once(secret, code)
             except Exception:
                 valid = False
         elif temp_key:
@@ -1803,6 +2050,7 @@ def admin_2fa_disable():
     set_setting("admin_temp_key_hash", "")
     set_setting("admin_temp_key_expires", "")
     session.pop("totp_setup_secret", None)
+    bump_session_epoch()
     audit_log("2fa_disabled")
     flash("两步验证已关闭。", "ok")
     return redirect(url_for("admin_settings"))
@@ -1854,9 +2102,9 @@ def admin_post_edit(post_id):
         abort(404)
     post = dict(p)
     if post.get("content_format") == "html":
-        content_html = post.get("content") or ""
+        content_html = clean_html(post.get("content") or "")
     else:
-        content_html = md.reset().convert(post.get("content") or "")
+        content_html = clean_html(render_markdown(post.get("content") or ""))
     selected_cat_ids = [
         r["category_id"] for r in db.execute(
             "SELECT category_id FROM post_categories WHERE post_id = ?", (post_id,)
@@ -2205,7 +2453,9 @@ def admin_user_password(user_id):
         db = get_db()
         db.execute("UPDATE users SET password_hash = ? WHERE id = ?", (hash_password(pwd), user_id))
         db.commit()
-        flash("密码已更新。", "ok")
+        bump_session_epoch()
+        audit_log("password_changed", user_id)
+        flash("密码已更新，其他设备上的登录已失效。", "ok")
     return redirect(url_for("admin_users"))
 
 
@@ -2247,6 +2497,7 @@ def admin_user_delete(user_id):
     else:
         db.execute("DELETE FROM users WHERE id = ?", (user_id,))
         db.commit()
+        bump_session_epoch()
         flash("用户已删除。", "ok")
     return redirect(url_for("admin_users"))
 
